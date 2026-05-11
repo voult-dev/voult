@@ -2,7 +2,7 @@
 
 Voult.dev is a **developer-first authentication platform** that provides secure, scalable, and easy-to-integrate authentication APIs for modern web applications.
 
-It handles the hard parts of auth — user management, email verification, password resets, JWT handling, and account security — so developers can focus on building products, not auth systems.
+It handles the hard parts of auth — user management, email verification, password resets, magic links, OAuth integration, JWT handling, and account security — so developers can focus on building products, not auth systems.
 
 ---
 
@@ -13,9 +13,10 @@ Live: https://www.voult.dev
 ##  Features
 
 ### Core Authentication.
-- User registration (email + password)
-- Secure login & logout
-- JWT-based authentication
+- User registration (email + password, or username + password)
+- Secure login & logout (email-based or username-based)
+- Magic link authentication (passwordless login)
+- JWT-based authentication with token versioning
 - Email verification flow
 - Password reset (forgot & reset)
 - Password strength enforcement
@@ -23,11 +24,23 @@ Live: https://www.voult.dev
   - Unverified emails
   - Disabled accounts
 
+### OAuth Support.
+- OAuth middleware for API routes
+- Multi-provider configuration (in development)
+- Seamless provider integration
+
+### Magic Link Authentication.
+- Token-based passwordless authentication
+- Input validation and atomic token claiming
+- Redirect URI allowlisting
+- API rate limiting for enhanced security
+
 ### Account Management.
 - Soft delete (disable account)
 - Re-enable disabled accounts
 - Token revocation via `tokenVersion`
 - Current user endpoint (`/me`)
+- Username and email-based account lookup
 
 ### Developer-Focused.
 - API-first architecture
@@ -35,17 +48,19 @@ Live: https://www.voult.dev
 - Built for extensibility
 - SDK support (WIP)
 - Rate-limited sensitive endpoints
+- Comprehensive input validation
+- Atomic operations for data integrity
 
 ---
 
 ##  Tech Stack.
 
 - **Backend**: Node.js, Express
-- **Auth**: JWT, Passport.js
+- **Auth**: JWT, Passport.js, OAuth middleware
 - **Database**: MongoDB + Mongoose
 - **Templating**: EJS (for emails & views)
-- **Security**: bcrypt, rate limiting, validation middleware
-- **Frontend (Landing / Docs)**: HTML, CSS, JS
+- **Security**: bcrypt, rate limiting, validation middleware, atomic transactions
+- **Frontend (Landing / Docs)**: HTML, CSS, JavaScript
 
 ---
 
@@ -54,10 +69,10 @@ Live: https://www.voult.dev
 ```bash
 voult/
 ├── config/          # App & auth configuration
-├── controllers/     # Request handlers (auth, users, etc.)
+├── controllers/     # Request handlers (auth, users, OAuth, magic links, etc.)
 ├── models/          # Mongoose schemas
 ├── routes/          # API routes
-├── services/        # Business logic (tokens, email, etc.)
+├── services/        # Business logic (tokens, email, OAuth, magic links, etc.)
 ├── validators/      # Input validation logic
 ├── utils/           # Shared utilities
 ├── views/           # EJS templates
@@ -65,3 +80,25 @@ voult/
 ├── sdk/             # Client SDK (WIP)
 ├── TODO.md          # Product roadmap
 └── structure.md     # Architecture notes
+```
+
+---
+
+##  Latest Updates
+
+**Recent Enhancements (May 2026):**
+- ✅ Enhanced magic link functionality with atomic token claiming and redirect URI allowlisting
+- ✅ API rate limiting for magic link routes
+- ✅ JWT middleware improvements for cleaner user data handling
+- ✅ Username-based authentication (registration & login)
+- ✅ OAuth middleware integration for multi-provider support
+- ✅ Comprehensive TODO documentation with detailed feature tracking
+- ✅ Email service configuration updates for consistency
+
+---
+
+## Language Composition
+
+- **JavaScript**: 72.8%
+- **EJS**: 22.4%
+- **CSS**: 4.8%

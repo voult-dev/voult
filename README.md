@@ -96,9 +96,3 @@ voult/
 - ✅ Email service configuration updates for consistency
 
 ---
-
-## Language Composition
-
-- **JavaScript**: 72.8%
-- **EJS**: 22.4%
-- **CSS**: 4.8%

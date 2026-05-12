@@ -40,7 +40,6 @@ const corsOptions = {
       'https://www.voult.dev',
       'https://voult.dev',
       'https://voult.onrender.com',
-      'https://voult.onrender.com/',
       'http://localhost:3000',
       'http://127.0.0.1:3000'
     ];
@@ -143,8 +142,7 @@ app.use((err, req, res, next) => {
   if (status === 404) {
     return res.status(404).render('error/404', {title : 'Page Not Found'});
   }
-
-  console.error(err);
+  
   res.status(status).render('error/500', {title : 'Internal Server Error'});
 });
   

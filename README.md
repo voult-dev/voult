@@ -1,4 +1,4 @@
-# Voult — Authentication as a Service for Developers.
+# Voult.dev — Authentication as a Service for Developers.
 
 Voult.dev is a **developer-first authentication platform** that provides secure, scalable, and easy-to-integrate authentication APIs for modern web applications.
 
@@ -29,17 +29,11 @@ Live: https://www.voult.dev
 - Multi-provider configuration (in development)
 - Seamless provider integration
 
-### Magic Link Authentication.
-- Token-based passwordless authentication
-- Input validation and atomic token claiming
-- Redirect URI allowlisting
-- API rate limiting for enhanced security
-
 ### Account Management.
 - Soft delete (disable account)
 - Re-enable disabled accounts
 - Token revocation via `tokenVersion`
-- Current user endpoint (`/me`)
+- Current user (profile) endpoint (`/me`)
 - Username and email-based account lookup
 
 ### Developer-Focused.
@@ -56,11 +50,11 @@ Live: https://www.voult.dev
 ##  Tech Stack.
 
 - **Backend**: Node.js, Express
-- **Auth**: JWT, Passport.js, OAuth middleware
+- **Auth**: JWT, OAuth middleware
 - **Database**: MongoDB + Mongoose
 - **Templating**: EJS (for emails & views)
 - **Security**: bcrypt, rate limiting, validation middleware, atomic transactions
-- **Frontend (Landing / Docs)**: HTML, CSS, JavaScript
+- **Frontend (Landing / Docs)**: HTML, CSS, JavaScript, React.js
 
 ---
 
@@ -77,7 +71,6 @@ voult/
 ├── utils/           # Shared utilities
 ├── views/           # EJS templates
 ├── public/          # Static assets
-├── sdk/             # Client SDK (WIP)
 ├── TODO.md          # Product roadmap
 └── structure.md     # Architecture notes
 ```
@@ -87,12 +80,14 @@ voult/
 ##  Latest Updates
 
 **Recent Enhancements (May 2026):**
-- ✅ Enhanced magic link functionality with atomic token claiming and redirect URI allowlisting
-- ✅ API rate limiting for magic link routes
-- ✅ JWT middleware improvements for cleaner user data handling
-- ✅ Username-based authentication (registration & login)
-- ✅ OAuth middleware integration for multi-provider support
-- ✅ Comprehensive TODO documentation with detailed feature tracking
-- ✅ Email service configuration updates for consistency
+- [x] Enhanced magic link functionality with atomic token claiming and redirect URI allowlisting (WIP)
+- [x] API rate limiting for magic link routes
+- [x] JWT middleware improvements for cleaner user data handling
+- [x] Username-based authentication (registration & login)
+- [x] OAuth middleware integration for multi-provider support
+- [x] Comprehensive TODO documentation with detailed feature tracking
+- [x] Email service configuration updates for consistency
+- [x] Javascript SDK (WIP)
 
 ---
+This project is 4 months away from launch.

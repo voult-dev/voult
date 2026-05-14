@@ -61,6 +61,55 @@ This document consolidates:
 
 ---
 
+## 🎯 CRITICAL ACTIVE TASKS
+
+### SDK Development
+- [ ] Continue writing SDK functions (JavaScript)
+- [ ] Improve SDK architecture consistency
+- [ ] Add helper utilities for authentication flows
+- [ ] Add token/session management helpers
+- [ ] Add OAuth provider utilities
+- [ ] Improve SDK error handling
+- [ ] Add refresh token handling helpers
+- [ ] Add middleware/helper abstractions
+- [ ] Create SDK testing suite
+- [ ] Add integration examples for Express and Next.js
+- [ ] Improve SDK documentation and inline comments
+- [ ] Validate SDK performance and reliability
+- [ ] Prepare SDK package for public release
+
+---
+
+### Cross-Codebase Issues
+- [ ] Resolve error message issue in another codebase
+- [ ] Audit inconsistent API/server error responses
+- [ ] Standardize backend error formatting
+- [ ] Improve developer-facing debugging information
+- [ ] Create centralized error utility/helpers
+- [ ] Improve logging and stack trace visibility
+- [ ] Ensure consistent HTTP status code handling
+- [ ] Add validation error standardization
+- [ ] Improve frontend-facing error readability
+- [ ] Test all auth-related failure scenarios
+
+---
+
+### Database Stability
+- [ ] Investigate current DB problem
+- [ ] Audit database connection lifecycle
+- [ ] Review query performance bottlenecks
+- [ ] Optimize slow database queries
+- [ ] Validate indexing strategy
+- [ ] Add database monitoring and metrics
+- [ ] Improve database error handling
+- [ ] Configure backup and recovery procedures
+- [ ] Stress test DB under production load
+- [ ] Create database failover/recovery plan
+- [ ] Validate Redis/database synchronization
+- [ ] Prepare production database scaling strategy
+
+---
+
 ## 📋 WEEK-BY-WEEK BREAKDOWN
 
 ### **WEEK 1 (May 13-19, 2026)** - Foundation & Setup

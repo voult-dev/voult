@@ -11,11 +11,11 @@ function appIdFromPayload(payload) {
  * Use after `verifyClient` when the route must also match the app embedded in the JWT.
  */
 module.exports = function requireEndUserAuth(req, res, next) {
-  // if (!req.endUser) {
-  //   return next(
-  //     new ApiError(401, 'UNAUTHORIZED', 'Authentication required')
-  //   );
-  // }
+  if (!req.endUser) {
+    return next(
+      new ApiError(401, 'UNAUTHORIZED', 'Authentication required')
+    );
+  }
 
   if (req.appClient && req.tokenPayload) {
     const tokenAppId = appIdFromPayload(req.tokenPayload);

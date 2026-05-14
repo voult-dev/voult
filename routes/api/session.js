@@ -13,6 +13,6 @@ router.get('/', requireEndUserAuth, requireActiveEndUser, catchAsync(controller.
 
 router.get('/revoke/:sessionId', requireEndUserAuth, requireActiveEndUser, catchAsync(controller.revokeSession));
 
-router.post('/refresh', requireEndUserAuth, requireActiveEndUser, catchAsync(controller.refresh));                                               
+router.post('/refresh', catchAsync(controller.refresh));                                               
 
 module.exports = router;

@@ -63,6 +63,9 @@ This document consolidates:
 
 ##  CRITICAL ACTIVE TASKS
 
+### SDK Testing
+- [ ] Logout Issue (Reloading)
+
 ### SDK Development
 - [ ] Continue writing SDK functions (JavaScript)
 - [ ] Improve SDK architecture consistency

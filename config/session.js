@@ -9,7 +9,8 @@ const sessionConfig = {
     name: 'voultSessionId',
 
     cookie: {
-        secure: isProduction,
+        // 'auto' allows session cookies on http://localhost during local dev
+        secure: isProduction ? 'auto' : false,
         httpOnly: true,
 
         sameSite: 'lax',

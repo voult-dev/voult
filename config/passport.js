@@ -2,10 +2,7 @@ const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const GitHubStrategy = require('passport-github').Strategy;
 const Developer = require('../models/developer');
-
-function getBaseUrl() {
-  return (process.env.BASE_URL || 'http://localhost:3000').trim().replace(/\/$/, '');
-}
+const { getBaseUrl } = require('../utils/oauthCallbackUrl');
 
 passport.use(Developer.createStrategy());
 

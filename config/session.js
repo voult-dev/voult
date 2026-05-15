@@ -1,7 +1,7 @@
 const isProduction = process.env.NODE_ENV === 'production';
 
 const sessionConfig = {
-    secret: process.env.SESSION_SECRET || process.env.SECRET,
+    secret: process.env.SECRET,
     resave: false,
     saveUninitialized: false,
     name: 'voultSessionId',
@@ -10,11 +10,10 @@ const sessionConfig = {
         secure: isProduction,
         httpOnly: true,
 
-        // safer for production auth flows
         sameSite: isProduction ? 'lax' : 'lax',
 
         // IMPORTANT: hostname only
-        domain: isProduction ? '.voult.dev' : undefined,
+        // domain: isProduction ? '.voult.dev' : undefined,
 
         path: '/',
 

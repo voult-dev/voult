@@ -50,6 +50,7 @@ Voult is an **Authentication-as-a-Service** platform. Think of it like Auth0 or 
 ```
 
 **The core mental model:**
+
 - **Developers** log in via the web UI (browser sessions, EJS pages) to create and configure "Apps."
 - Each **App** gets a `clientId` and `clientSecret`.
 - **External apps** use those credentials in HTTP headers to call the Voult API on behalf of their own users (End Users).
@@ -486,10 +487,12 @@ The API plane uses **two tokens** per authenticated session — no cookies invol
 
 ### Token types
 
-| Token | Format | Lifetime | Stored in DB? | Purpose |
-|-------|--------|----------|---------------|---------|
-| Access Token | JWT (signed) | 15 minutes | No | Proves identity on API requests |
-| Refresh Token | Random hex (64 bytes) | 30 days | Yes (hashed) | Gets new access tokens without re-login |
+
+| Token         | Format                | Lifetime   | Stored in DB? | Purpose                                 |
+| ------------- | --------------------- | ---------- | ------------- | --------------------------------------- |
+| Access Token  | JWT (signed)          | 15 minutes | No            | Proves identity on API requests         |
+| Refresh Token | Random hex (64 bytes) | 30 days    | Yes (hashed)  | Gets new access tokens without re-login |
+
 
 ### Access Token internals
 
@@ -506,7 +509,7 @@ jwt.sign(
 )
 ```
 
-**`tokenVersion` is the logout/revocation mechanism.** When a user logs out, `tokenVersion` is incremented. Any existing access tokens with the old version are silently rejected by `verifyEndUserJWT`.
+`**tokenVersion` is the logout/revocation mechanism.** When a user logs out, `tokenVersion` is incremented. Any existing access tokens with the old version are silently rejected by `verifyEndUserJWT`.
 
 ### How `verifyEndUserJWT` works (soft auth)
 
@@ -834,17 +837,19 @@ These authenticate **your app** to Voult (not your user).
 
 After login, you receive `accessToken` and `refreshToken`. Store them appropriately:
 
-- **`accessToken` (15 min JWT):** Use as `Authorization: Bearer <token>` on protected API calls
-- **`refreshToken` (30-day raw token):** Store securely; use to get new access tokens
+- `**accessToken` (15 min JWT):** Use as `Authorization: Bearer <token>` on protected API calls
+- `**refreshToken` (30-day raw token):** Store securely; use to get new access tokens
 
 ### Token storage recommendations by context
 
-| Context | Access Token | Refresh Token |
-|---------|-------------|---------------|
-| Server-side (Node.js) | In-memory or session store | Encrypted in database or session |
-| Browser SPA | Memory (variable) | HttpOnly cookie or secure storage |
-| Mobile app | Secure keychain/keystore | Secure keychain/keystore |
-| **Never** | localStorage | localStorage (XSS risk) |
+
+| Context               | Access Token               | Refresh Token                     |
+| --------------------- | -------------------------- | --------------------------------- |
+| Server-side (Node.js) | In-memory or session store | Encrypted in database or session  |
+| Browser SPA           | Memory (variable)          | HttpOnly cookie or secure storage |
+| Mobile app            | Secure keychain/keystore   | Secure keychain/keystore          |
+| **Never**             | localStorage               | localStorage (XSS risk)           |
+
 
 ### Complete integration example (Node.js / Express)
 
@@ -1068,6 +1073,7 @@ Developer (1)
 ### Key model design decisions
 
 **EndUser uniqueness constraints:**
+
 ```javascript
 // email unique per app (not globally — same email can exist in different apps)
 EndUserSchema.index({ app: 1, email: 1 }, { unique: true, sparse: true });
@@ -1078,12 +1084,14 @@ EndUserSchema.index({ app: 1, username: 1 }, { unique: true, sparse: true });
 ```
 
 **RefreshToken TTL (automatic cleanup):**
+
 ```javascript
 // MongoDB will auto-delete documents when expiresAt passes
 refreshTokenSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 ```
 
 **MagicLinkToken atomic claiming:**
+
 ```javascript
 // findOneAndUpdate is atomic at the MongoDB level
 // prevents race conditions where two simultaneous requests use the same token
@@ -1094,7 +1102,8 @@ MagicLinkToken.findOneAndUpdate(
 )
 ```
 
-**`passwordHash` is hidden by default:**
+`**passwordHash` is hidden by default:**
+
 ```javascript
 passwordHash: { type: String, select: false }
 // Must explicitly opt in: EndUser.findOne({...}).select('+passwordHash')
@@ -1241,12 +1250,14 @@ EndUser.findOne({ email }).select('+passwordHash')
 
 The codebase checks `process.env.NODE_ENV` for critical security decisions. A summary of what changes in production:
 
-| Setting | Development | Production |
-|---------|-------------|------------|
-| Session cookie `secure` | `false` | Should be `true` |
-| JWT expiry | `7d` (some places) | `15m` |
-| TLS for SMTP | Optional | Required |
-| SECRET validation | Warning | Hard throw |
+
+| Setting                 | Development        | Production       |
+| ----------------------- | ------------------ | ---------------- |
+| Session cookie `secure` | `false`            | Should be `true` |
+| JWT expiry              | `7d` (some places) | `15m`            |
+| TLS for SMTP            | Optional           | Required         |
+| SECRET validation       | Warning            | Hard throw       |
+
 
 ### 7. The `req` object as a data bus
 
@@ -1296,3 +1307,4 @@ Controllers simply consume from `req` — they don't need to re-query for things
 │ Verify email (GET)                 │ (none — token is in query string)        │
 └────────────────────────────────────┴──────────────────────────────────────────┘
 ```
+

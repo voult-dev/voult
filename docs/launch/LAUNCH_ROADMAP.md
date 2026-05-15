@@ -85,6 +85,35 @@ This document consolidates:
 
 ### Cross-Codebase Issues
 - [ ] Resolve error message issue in another codebase
+
+```
+const ERROR_HANDLING = {
+  // Auth errors
+  'INVALID_CREDENTIALS':          'Wrong email or password',
+  'EMAIL_NOT_VERIFIED':           'User needs to verify email first',
+  'ACCOUNT_DISABLED':             'Account was disabled',
+  'ACCOUNT_LOCKED':               'Too many failed attempts, locked for 15min',
+  
+  // Token errors
+  'INVALID_REFRESH_TOKEN':        'Refresh token not found — must re-login',
+  'REFRESH_TOKEN_EXPIRED':        'Refresh token expired — must re-login',
+  'REFRESH_TOKEN_REUSE_DETECTED': 'Security breach — all sessions killed',
+  
+  // Validation errors
+  'VALIDATION_ERROR':             'Request body failed Joi validation',
+  'WEAK_PASSWORD':                'Password doesn\'t meet complexity rules',
+  'USER_EXISTS':                  'Email already registered for this app',
+  'USERNAME_TAKEN':               'Username already taken for this app',
+  
+  // Client errors
+  'INVALID_CLIENT':               'X-Client-Id is wrong or app is inactive',
+  'INVALID_CLIENT_SECRET':        'X-Client-Secret is wrong',
+  'CLIENT_ID_REQUIRED':           'Missing X-Client-Id header',
+  'UNAUTHORIZED':                 'Missing or invalid Bearer token',
+  'TOKEN_APP_MISMATCH':           'Token was issued for a different app'
+};
+```
+
 - [ ] Audit inconsistent API/server error responses
 - [ ] Standardize backend error formatting
 - [ ] Improve developer-facing debugging information

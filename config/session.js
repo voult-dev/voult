@@ -11,10 +11,7 @@ const sessionConfig = {
         httpOnly: true,
 
         sameSite: isProduction ? 'lax' : 'lax',
-
-        // IMPORTANT: hostname only
-        domain: isProduction ? '.voult.dev' : 'localhost',
-
+        
         path: '/',
 
         maxAge: isProduction

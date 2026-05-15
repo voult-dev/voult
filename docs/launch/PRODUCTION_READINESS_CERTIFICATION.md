@@ -326,8 +326,8 @@ Upon completion of all security hardening measures outlined in the **SECURITY_HA
 - [x] Change `sameSite` from 'lax' to 'strict'
 - [x] Add domain restrictions
 - [x] Reduce session timeout in production
-- [ ] Test session across HTTPS
-- [ ] Verify HTTPOnly flag enforcement
+- [x] Test session across HTTPS
+- [x] Verify HTTPOnly flag enforcement
 
 **CSRF Protection:**
 - [ ] Install `csurf` package

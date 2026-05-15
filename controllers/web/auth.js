@@ -3,28 +3,54 @@ const passport = require('passport');
 const { welcomeEmail } = require('../../services/emailService');
 const crypto = require('crypto');
 
-const { getOAuthCallbackUrl } = require('../../utils/oauthCallbackUrl');
+const AUTH_CALLBACK_PATH = {
+  google: '/auth/google/callback',
+  github: '/auth/github/callback',
+};
 
 function oauthErrorMessage(strategy, err) {
-  if (err.code === 'invalid_grant') {
-    return 'Sign-in expired or was already used. Please try Google again.';
+  const inner = err.oauthError;
+  const blob = [
+    err.message,
+    inner && inner.message,
+    inner && inner.data,
+    inner && inner.statusCode,
+    err.code,
+    inner && inner.code,
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  if (
+    err.code === 'invalid_grant' ||
+    inner?.code === 'invalid_grant' ||
+    /invalid_grant|Malformed auth code/i.test(blob)
+  ) {
+    return 'Sign-in expired or was already used. Please try again.';
   }
-  if (/redirect_uri/i.test(err.message || '')) {
-    return 'OAuth redirect URL mismatch. Add this app\'s callback URL in Google Cloud Console.';
+  if (/redirect_uri/i.test(blob)) {
+    return (
+      'OAuth redirect URL mismatch. In Google Cloud Console → Credentials, add this exact URL ' +
+      'under Authorized redirect URIs (include http://localhost:3000/... for local dev).'
+    );
   }
+  if (/access denied/i.test(blob)) {
+    return 'Sign-in was cancelled.';
+  }
+
   console.error(`${strategy} OAuth error:`, err);
   return 'Sign-in failed. Please try again.';
 }
 
 function oauthCallback(strategy, req, res, next) {
-  const callbackURL = getOAuthCallbackUrl(
-    req,
-    `/auth/${strategy}/callback`
-  );
+  const callbackURL = AUTH_CALLBACK_PATH[strategy];
+  if (!callbackURL) {
+    req.flash('error', 'Unsupported sign-in provider.');
+    return res.redirect('/login');
+  }
 
   passport.authenticate(strategy, { callbackURL }, (err, user, info) => {
     if (err) {
-      console.error(`${strategy} OAuth callback URL:`, callbackURL);
       req.flash('error', oauthErrorMessage(strategy, err));
       return res.redirect('/login');
     }
@@ -150,7 +176,7 @@ module.exports.startLinkGoogle = (req, res, next) => {
   req.session.linkingUserId = req.user._id.toString();
   passport.authenticate('google', {
     scope: ['profile', 'email'],
-    callbackURL: getOAuthCallbackUrl(req, '/auth/google/link/callback'),
+    callbackURL: '/auth/google/link/callback',
   })(req, res, next);
 };
 
@@ -159,7 +185,7 @@ module.exports.googleLinkCallback = (req, res, next) => {
   if (targetId) delete req.session.linkingUserId;
 
   passport.authenticate('google', {
-    callbackURL: getOAuthCallbackUrl(req, '/auth/google/link/callback'),
+    callbackURL: '/auth/google/link/callback',
     failureRedirect: '/settings',
   }, async (err, user, info) => {
     if (err) {
@@ -203,7 +229,7 @@ module.exports.startLinkGithub = (req, res, next) => {
   req.session.linkingUserId = req.user._id.toString();
   passport.authenticate('github', {
     scope: ['user:email'],
-    callbackURL: getOAuthCallbackUrl(req, '/auth/github/link/callback'),
+    callbackURL: '/auth/github/link/callback',
   })(req, res, next);
 };
 
@@ -212,7 +238,7 @@ module.exports.githubLinkCallback = (req, res, next) => {
   if (targetId) delete req.session.linkingUserId;
 
   passport.authenticate('github', {
-    callbackURL: getOAuthCallbackUrl(req, '/auth/github/link/callback'),
+    callbackURL: '/auth/github/link/callback',
     failureRedirect: '/settings',
   }, async (err, user, info) => {
     if (err) {

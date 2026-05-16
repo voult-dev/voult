@@ -9,6 +9,7 @@
     <section class="settings-section card">
       <h2 class="section-title">Profile</h2>
       <form action="/settings" method="post" class="settings-form">
+      <input type="hidden" name="_csrf" value="<%=csrfToken %>">
         <% if (user.avatar) { %>
           <div class="form-group avatar-group">
             <img src="<%= user.avatar %>" alt="Avatar" class="settings-avatar" />
@@ -31,6 +32,7 @@
       <h2 class="section-title">Email</h2>
       <p class="muted mb-3">Current email: <strong><%= user.email %></strong></p>
       <form action="/settings/email/request-change" method="post" class="settings-form">
+      <input type="hidden" name="_csrf" value="<%=csrfToken %>">
         <div class="form-group">
           <label for="newEmail">Change to new email</label>
           <input type="email" name="newEmail" id="newEmail" class="form-control" placeholder="new@example.com" required />
@@ -50,6 +52,7 @@
           <% if (user.googleId) { %>
             <span class="provider-badge linked">Linked</span>
             <form action="/settings/unlink/google" method="post" class="inline-form" onsubmit="return confirm('Unlink Google from this account?');">
+            <input type="hidden" name="_csrf" value="<%=csrfToken %>">
               <button type="submit" class="btn-link danger">Unlink</button>
             </form>
           <% } else { %>
@@ -61,6 +64,7 @@
           <% if (user.githubId) { %>
             <span class="provider-badge linked">Linked</span>
             <form action="/settings/unlink/github" method="post" class="inline-form" onsubmit="return confirm('Unlink GitHub from this account?');">
+            <input type="hidden" name="_csrf" value="<%=csrfToken %>">
               <button type="submit" class="btn-link danger">Unlink</button>
             </form>
           <% } else { %>
@@ -77,6 +81,7 @@
       <% if (isOAuthOnly) { %>
         <p class="muted mb-3">You signed up with Google or GitHub. Set a password to also sign in with email and password.</p>
         <form action="/settings/password/set" method="post" class="settings-form">
+        <input type="hidden" name="_csrf" value="<%=csrfToken %>">
           <div class="form-group">
             <label for="setPassword">New password</label>
             <input type="password" name="password" id="setPassword" class="form-control" placeholder="••••••••" minlength="8" required />
@@ -91,6 +96,7 @@
         <!-- User has password (email signup or OAuth user who already set password) -->
         <p class="muted mb-3">Change your password. You’ll need to enter your current password.</p>
         <form action="/settings/password/change" method="post" class="settings-form">
+        <input type="hidden" name="_csrf" value="<%=csrfToken %>">
           <div class="form-group">
             <label for="currentPassword">Current password</label>
             <input type="password" name="currentPassword" id="currentPassword" class="form-control" placeholder="••••••••" required />

@@ -41,23 +41,39 @@ function requestOrigin(req) {
 
 /**
  * Canonical redirect URI for this OAuth flow.
- * - localhost: derive from the request (http://localhost:3000/...)
- * - production: use BASE_URL (matches Google Console — your .env has https://www.voult.dev)
+ *
+ * Priority:
+ *  1. If host is localhost → derive from request (http://localhost:PORT/path)
+ *  2. Otherwise → always use BASE_URL (the authoritative production URL).
+ *     Never fall back to passport-oauth2's originalURL() in production because
+ *     it can reconstruct an http:// URL even on HTTPS deployments behind a
+ *     reverse proxy, causing a redirect_uri mismatch with Google/GitHub.
  */
 function resolveOAuthCallbackUrl(req, relativePath) {
   const path = relativePath.startsWith('/') ? relativePath : `/${relativePath}`;
 
   const host = req.get('host') || req.headers?.host || '';
+
+  // On localhost always derive from the request so developers don't need BASE_URL set.
   if (isLocalHost(host)) {
     const origin = requestOrigin(req);
     if (origin) return `${origin}${path}`;
   }
 
+  // In production (or any non-localhost host) always use BASE_URL.
+  // This guarantees the URI matches what is registered in Google/GitHub consoles.
   const base = getBaseUrl();
   if (base) {
     return `${base}${path}`;
   }
 
+  // Last-resort fallback: try to derive from the request (may still be wrong on some
+  // proxy setups, but at least we tried). Log a warning so it's obvious.
+  console.warn(
+    '[resolveOAuthCallbackUrl] BASE_URL is not set. ' +
+      'OAuth redirect URIs may be incorrect in production. ' +
+      'Set BASE_URL=https://www.voult.dev in your environment.'
+  );
   const origin = requestOrigin(req);
   if (origin) return `${origin}${path}`;
 
@@ -75,6 +91,8 @@ function takeOAuthCallbackUrl(req, fallbackPath) {
     delete req.session.oauthCallbackUrl;
     return stored;
   }
+  // If the session value is gone (e.g. session not persisted across redirect),
+  // recompute deterministically from BASE_URL so it still matches Google Console.
   return resolveOAuthCallbackUrl(req, fallbackPath);
 }
 

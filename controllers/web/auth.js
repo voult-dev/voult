@@ -5,7 +5,15 @@ const crypto = require('crypto');
 const {
   PATHS: OAUTH_PATHS,
   resolveOAuthCallbackUrl,
+  stashOAuthCallbackUrl,
+  takeOAuthCallbackUrl,
 } = require('../../utils/resolveOAuthCallbackUrl');
+
+function saveSession(req) {
+  return new Promise((resolve, reject) => {
+    req.session.save((err) => (err ? reject(err) : resolve()));
+  });
+}
 
 function logOAuthError(strategy, err, callbackURL) {
   console.error(`[${strategy}] OAuth callback URL used:`, callbackURL);
@@ -75,7 +83,8 @@ function oauthCallback(strategy, req, res, next) {
     return res.redirect('/login');
   }
 
-  const callbackURL = resolveOAuthCallbackUrl(req, path);
+  const callbackURL = takeOAuthCallbackUrl(req, path);
+  console.log(`[${strategy}] OAuth callback → redirect_uri:`, callbackURL);
 
   passport.authenticate(strategy, { callbackURL }, (err, user, info) => {
     if (err) {
@@ -106,16 +115,28 @@ function oauthCallback(strategy, req, res, next) {
   })(req, res, next);
 }
 
-function startOAuth(strategy, req, res, next, { path, scope }) {
-  const callbackURL = resolveOAuthCallbackUrl(req, path);
-  if (process.env.NODE_ENV !== 'production') {
+async function startOAuth(strategy, req, res, next, { path, scope }) {
+  try {
+    const callbackURL = resolveOAuthCallbackUrl(req, path);
+    stashOAuthCallbackUrl(req, callbackURL);
     console.log(`[${strategy}] OAuth start → redirect_uri:`, callbackURL);
+    await saveSession(req);
+    passport.authenticate(strategy, { scope, callbackURL })(req, res, next);
+  } catch (err) {
+    console.error(`[${strategy}] could not start OAuth:`, err);
+    req.flash('error', 'Could not start sign-in. Please try again.');
+    res.redirect('/login');
   }
-  passport.authenticate(strategy, { scope, callbackURL })(req, res, next);
 }
 
-module.exports.loginForm = (req, res) => {
-  res.render('auth/login', { title: 'Login Page' });
+module.exports.loginForm = async (req, res, next) => {
+  try {
+    req.session.touched = true;
+    await saveSession(req);
+    res.render('auth/login', { title: 'Login Page' });
+  } catch (err) {
+    next(err);
+  }
 };
 
 module.exports.login = async (req, res) => {
@@ -221,7 +242,7 @@ module.exports.verifyAccount = async (req, res) => {
 
 module.exports.startLinkGoogle = (req, res, next) => {
   req.session.linkingUserId = req.user._id.toString();
-  startOAuth('google', req, res, next, {
+  return startOAuth('google', req, res, next, {
     path: OAUTH_PATHS.google.link,
     scope: ['profile', 'email'],
   });
@@ -231,7 +252,7 @@ module.exports.googleLinkCallback = (req, res, next) => {
   const targetId = req.session.linkingUserId;
   if (targetId) delete req.session.linkingUserId;
 
-  const callbackURL = resolveOAuthCallbackUrl(req, OAUTH_PATHS.google.link);
+  const callbackURL = takeOAuthCallbackUrl(req, OAUTH_PATHS.google.link);
 
   passport.authenticate(
     'google',
@@ -278,7 +299,7 @@ module.exports.googleLinkCallback = (req, res, next) => {
 
 module.exports.startLinkGithub = (req, res, next) => {
   req.session.linkingUserId = req.user._id.toString();
-  startOAuth('github', req, res, next, {
+  return startOAuth('github', req, res, next, {
     path: OAUTH_PATHS.github.link,
     scope: ['user:email'],
   });
@@ -288,7 +309,7 @@ module.exports.githubLinkCallback = (req, res, next) => {
   const targetId = req.session.linkingUserId;
   if (targetId) delete req.session.linkingUserId;
 
-  const callbackURL = resolveOAuthCallbackUrl(req, OAUTH_PATHS.github.link);
+  const callbackURL = takeOAuthCallbackUrl(req, OAUTH_PATHS.github.link);
 
   passport.authenticate(
     'github',

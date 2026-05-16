@@ -23,8 +23,15 @@ const session = require('express-session');
 const flash = require('connect-flash');
 
 const passport = require('../config/passport');
+const { listGoogleRedirectUris } = require('../utils/resolveOAuthCallbackUrl');
 
 const sessionConfig = require('../config/session');
+
+if (!process.env.GOOGLE_CLIENT_ID?.trim() || !process.env.GOOGLE_CLIENT_SECRET?.trim()) {
+  console.warn(
+    'WARNING: GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET is missing. Google sign-in will fail.'
+  );
+}
 
 const methodOverride = require('method-override');
 
@@ -149,5 +156,7 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`App is listening on PORT ${PORT}`)
+  console.log(`App is listening on PORT ${PORT}`);
+  console.log('Google OAuth — add these Authorized redirect URIs in Google Cloud Console:');
+  listGoogleRedirectUris().forEach((uri) => console.log(`  • ${uri}`));
 });

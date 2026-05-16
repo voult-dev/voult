@@ -14,6 +14,7 @@
     method="POST"
     class="form-card"
   >
+  <input type="hidden" name="_csrf" value="<%=csrfToken %>">
     <div class="form-group">
       <label for="name" class="text-dark opacity-50">App Name</label>
       <input
@@ -91,6 +92,8 @@
       action="/app/<%= app._id %>?_method=DELETE"
       method="POST"
     >
+    <input type="hidden" name="_csrf" value="<%=csrfToken %>">
+    
       <button type="submit" class="btn-danger">
         Delete App
       </button>

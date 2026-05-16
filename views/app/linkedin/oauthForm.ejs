@@ -5,6 +5,7 @@
     <h2 class="text-white">LinkedIn OAuth Configuration</h2>
 
     <form action="/app/<%= app._id %>/linkedin-oauth" method="POST" class="card app-form">
+    <input type="hidden" name="_csrf" value="<%=csrfToken %>">
 
       <div class="form-group">
         <label class="text-light opacity-50">LinkedIn Client ID</label>
@@ -50,7 +51,7 @@
     <h2 class="text-white">Update LinkedIn OAuth</h2>
 
     <form action="/app/<%= app._id %>/update-linkedin-oauth" method="POST" class="card app-form">
-
+    <input type="hidden" name="_csrf" value="<%=csrfToken %>">
       <input type="hidden" name="enabled" value="true" />
 
       <div class="form-group">

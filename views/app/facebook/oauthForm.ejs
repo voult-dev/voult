@@ -9,6 +9,7 @@
           method="POST"
           class="card app-form"
         >
+        <input type="hidden" name="_csrf" value="<%=csrfToken %>">
       
           <!-- Enable Facebook OAuth -->
           <div class="form-group">
@@ -95,6 +96,7 @@
               action="/app/<%= app._id %>/update-facebook-oauth"
               class="oauth-form"
             >
+            <input type="hidden" name="_csrf" value="<%=csrfToken %>">
               <!-- Enable / Disable -->
               <div class="form-group checkbox-group">
                 <label>

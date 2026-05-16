@@ -5,7 +5,7 @@
     <h2 class="text-white">Microsoft OAuth Configuration</h2>
 
     <form action="/app/<%= app._id %>/microsoft-oauth" method="POST" class="card app-form">
-
+    <input type="hidden" name="_csrf" value="<%=csrfToken %>">
       <div class="form-group">
         <label class="text-light opacity-50">Microsoft Client ID</label>
         <input
@@ -60,7 +60,7 @@
     <h2 class="text-white">Update Microsoft OAuth</h2>
 
     <form action="/app/<%= app._id %>/update-microsoft-oauth" method="POST" class="card app-form">
-
+    <input type="hidden" name="_csrf" value="<%=csrfToken %>">
       <input type="hidden" name="enabled" value="true" />
 
       <div class="form-group">

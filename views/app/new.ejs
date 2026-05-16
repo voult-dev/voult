@@ -10,7 +10,7 @@
   </div>
 
   <form action="/app" method="POST" class="card app-form">
-
+  <input type="hidden" name="_csrf" value="<%=csrfToken %>">
     <div class="form-group">
       <label for="name" class="text-white">App Name</label>
       <input

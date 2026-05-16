@@ -92,6 +92,7 @@
     </div>
     
     <form action="/app/<%= app._id %>/rotate-secret" method="POST">
+    <input type="hidden" name="_csrf" value="<%=csrfToken %>">
       <button class="btn-secondary">Rotate Client Secret</button>
     </form>
 
@@ -105,6 +106,7 @@
     <h2 class="text-white">Actions</h2>
 
     <form action="/app/<%= app._id %>/toggle" method="POST" class="action-spacing">
+    <input type="hidden" name="_csrf" value="<%=csrfToken %>">
       <button class="btn <%= app.isActive ? 'btn-danger' : 'btn-secondary' %> ">
         <%= app.isActive ? 'Disable App' : 'Enable App' %>
       </button>
@@ -116,6 +118,7 @@
         method="POST"
         onsubmit="return confirm('Are you sure you want to delete this app?');"
       >
+      <input type="hidden" name="_csrf" value="<%=csrfToken %>">
         <button class="btn-secondary">
           Delete App
         </button>

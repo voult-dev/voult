@@ -9,6 +9,7 @@
       method="POST"
       class="card app-form"
     >
+    <input type="hidden" name="_csrf" value="<%=csrfToken %>">
       <!-- Client ID -->
       <div class="form-group">
         <label class="text-light opacity-50">GitHub Client ID</label>
@@ -61,6 +62,7 @@
       <h2 class="text-white">Update GitHub OAuth</h2>
     
       <form action="/app/<%= app._id %>/github-oauth" method="POST" class="card app-form">
+      <input type="hidden" name="_csrf" value="<%=csrfToken %>">
     
         <input type="hidden" name="enabled" value="true" />
     

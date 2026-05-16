@@ -195,8 +195,6 @@ what you add
 - `views/forgottenPassword/reset-password.ejs`
   - `POST /reset-password/<%= token %>`
 
-WHERE AM AT: 
-
 - `views/user/settings.ejs`
   - `POST /settings`
   - `POST /settings/email/request-change`
@@ -249,6 +247,8 @@ router.post('/api/auth/login', csrfProtection, async (req, res) => {
     // Proceed with login logic
 });
 ```
+
+### Routes that need CSRF Protection.
 
 Client-side (JavaScript):
 

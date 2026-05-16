@@ -1,4 +1,5 @@
 # Voult.dev Security Hardening Guide
+
 ## Production-Ready SaaS Authentication Platform
 
 **Current Security Score: 6.5/10**  
@@ -7,11 +8,12 @@
 
 ---
 
-##  Executive Summary
+## Executive Summary
 
 This guide addresses critical security concerns in Voult.dev and provides production-ready solutions to achieve enterprise-grade security for SaaS applications. Each issue includes risk assessment, code examples, and implementation guidelines.
 
 **Critical Issues (Fix Immediately):**
+
 1. Session Cookie Security Configuration
 2. Missing CSRF Protection
 3. Incomplete XSS Prevention
@@ -33,6 +35,7 @@ This guide addresses critical security concerns in Voult.dev and provides produc
 **Impact:** Session hijacking, man-in-the-middle attacks over HTTP
 
 **Current Problem:**
+
 ```javascript
 // config/session.js - INSECURE
 const sessionConfig = {
@@ -81,11 +84,12 @@ module.exports = sessionConfig;
 ```
 
 **Implementation Checklist:**
-- [ ] Update `config/session.js` with secure settings
-- [ ] Set `NODE_ENV=production` in production
-- [ ] Enable HTTPS on all production domains
-- [ ] Test session behavior with secure flag
-- [ ] Update `.env.example` with `SESSION_SECRET` requirement
+
+- Update `config/session.js` with secure settings
+- Set `NODE_ENV=production` in production
+- Enable HTTPS on all production domains
+- Test session behavior with secure flag
+- Update `.env.example` with `SESSION_SECRET` requirement
 
 ---
 
@@ -97,6 +101,7 @@ module.exports = sessionConfig;
 **Solution:**
 
 **Step 1: Install CSRF Middleware**
+
 ```bash
 npm install csurf
 ```
@@ -104,6 +109,7 @@ npm install csurf
 **Step 2: Add CSRF Middleware Configuration**
 
 Create `middleware/csrfProtection.js`:
+
 ```javascript
 const csrf = require('csurf');
 const session = require('express-session');
@@ -125,9 +131,11 @@ module.exports = {
     generateCsrfToken
 };
 ```
+
 **Step 3: Integrate into Main App**
 
 Update `src/index.js`:
+
 ```javascript
 require('dotenv').config();
 
@@ -161,13 +169,13 @@ app.use(express.json({
 }));
 
 // ... rest of app setup
-```
 
-WHERE AM AT.
+```
 
 **Step 4: Update Web Forms**
 
 For EJS templates (web forms):
+
 ```ejs
 <!-- views/auth/login.ejs -->
 <form method="POST" action="/auth/login">
@@ -183,6 +191,7 @@ For EJS templates (web forms):
 **Step 5: API CSRF Protection**
 
 For API endpoints, clients must send token in header:
+
 ```javascript
 // controllers/api/auth.js - Add token validation
 const { csrfProtection } = require('../../middleware/csrfProtection');
@@ -194,6 +203,7 @@ router.post('/api/auth/login', csrfProtection, async (req, res) => {
 ```
 
 Client-side (JavaScript):
+
 ```javascript
 // Fetch CSRF token first
 const response = await fetch('/auth/csrf-token', {
@@ -216,6 +226,7 @@ const loginResponse = await fetch('/api/auth/login', {
 ```
 
 **Testing CSRF Protection:**
+
 ```javascript
 // tests/csrf.test.js
 const request = require('supertest');
@@ -245,11 +256,13 @@ describe('CSRF Protection', () => {
 **Step 1: Add Security Headers Middleware**
 
 Install dependencies:
+
 ```bash
 npm install helmet express-validator
 ```
 
 Create `middleware/securityHeaders.js`:
+
 ```javascript
 const helmet = require('helmet');
 
@@ -291,6 +304,7 @@ module.exports = securityHeadersMiddleware;
 **Step 2: Create Input Sanitization Middleware**
 
 Create `middleware/inputSanitization.js`:
+
 ```javascript
 const { body, validationResult, query } = require('express-validator');
 const DOMPurify = require('isomorphic-dompurify');
@@ -356,6 +370,7 @@ module.exports = {
 ```
 
 **Step 3: Install DOMPurify**
+
 ```bash
 npm install isomorphic-dompurify
 ```
@@ -363,6 +378,7 @@ npm install isomorphic-dompurify
 **Step 4: Update Authentication Controller**
 
 Update `controllers/api/auth.js`:
+
 ```javascript
 const { ApiError } = require('../../utils/apiError');
 const { validators, handleValidationErrors, sanitize } = require('../../middleware/inputSanitization');
@@ -420,6 +436,7 @@ router.post(
 **Step 6: Content Security Policy Headers**
 
 Update `src/index.js`:
+
 ```javascript
 const securityHeaders = require('../middleware/securityHeaders');
 
@@ -427,6 +444,7 @@ app.use(securityHeaders);
 ```
 
 **Testing XSS Prevention:**
+
 ```javascript
 // tests/xss.test.js
 const request = require('supertest');
@@ -469,6 +487,7 @@ describe('XSS Prevention', () => {
 **Step 1: Enhanced Environment Validation**
 
 Create `config/secrets.js`:
+
 ```javascript
 // config/secrets.js
 const crypto = require('crypto');
@@ -578,6 +597,7 @@ module.exports = {
 **Step 2: Update Entry Point**
 
 Update `src/index.js`:
+
 ```javascript
 require('dotenv').config();
 
@@ -597,6 +617,7 @@ try {
 **Step 3: Enhanced JWT Configuration**
 
 Update `utils/jwt.js`:
+
 ```javascript
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
@@ -656,6 +677,7 @@ exports.signRefreshToken = () => {
 **Step 4: Secret Rotation Implementation**
 
 Create `services/secretRotation.js`:
+
 ```javascript
 const crypto = require('crypto');
 
@@ -744,12 +766,13 @@ CORS_ORIGIN=https://www.voult.dev
 ```
 
 **Implementation Checklist:**
-- [ ] Generate strong secrets using `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
-- [ ] Update `.env` with all required secrets (minimum 32 characters each)
-- [ ] Set up secret rotation reminder (every 90 days)
-- [ ] Implement secret version tracking
-- [ ] Test secret validation on app startup
-- [ ] Document secret rotation procedure for team
+
+- Generate strong secrets using `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
+- Update `.env` with all required secrets (minimum 32 characters each)
+- Set up secret rotation reminder (every 90 days)
+- Implement secret version tracking
+- Test secret validation on app startup
+- Document secret rotation procedure for team
 
 ---
 
@@ -763,6 +786,7 @@ CORS_ORIGIN=https://www.voult.dev
 **Solution:**
 
 Create `middleware/queryValidation.js`:
+
 ```javascript
 const mongoose = require('mongoose');
 
@@ -835,6 +859,7 @@ module.exports = {
 ```
 
 Update controllers to use SafeQueryBuilder:
+
 ```javascript
 // controllers/api/auth.js
 const { SafeQueryBuilder } = require('../../middleware/queryValidation');
@@ -878,6 +903,7 @@ Already covered above in XSS Prevention (Issue #3). The `helmet` middleware with
 **Solution:**
 
 Create `utils/constantTimeComparison.js`:
+
 ```javascript
 // Prevent timing attacks in email enumeration
 function constantTimeCompare(a, b) {
@@ -897,6 +923,7 @@ module.exports = { constantTimeCompare };
 ```
 
 Update password reset endpoint:
+
 ```javascript
 // controllers/api/user.js
 const { constantTimeCompare } = require('../../utils/constantTimeComparison');
@@ -954,6 +981,7 @@ module.exports.resetPassword = async (req, res) => {
 **Solution:**
 
 Create `models/auditLog.js`:
+
 ```javascript
 const mongoose = require('mongoose');
 
@@ -1038,6 +1066,7 @@ module.exports = mongoose.model('AuditLog', AuditLogSchema);
 ```
 
 Create `services/auditService.js`:
+
 ```javascript
 const AuditLog = require('../models/auditLog');
 
@@ -1117,6 +1146,7 @@ module.exports = AuditService;
 ```
 
 Update auth controller to use audit logging:
+
 ```javascript
 // controllers/api/auth.js
 const AuditService = require('../../services/auditService');
@@ -1177,6 +1207,7 @@ module.exports.emailLogin = async (req, res) => {
 **Solution:**
 
 Create `middleware/advancedRateLimiting.js`:
+
 ```javascript
 const rateLimit = require('express-rate-limit');
 const RedisStore = require('rate-limit-redis');
@@ -1249,11 +1280,13 @@ module.exports = {
 ```
 
 Install Redis store:
+
 ```bash
 npm install redis rate-limit-redis
 ```
 
 Update routes to use advanced limiting:
+
 ```javascript
 // routes/api/auth.js
 const { emailBasedLimiter, ipBasedLimiter } = require('../../middleware/advancedRateLimiting');
@@ -1283,11 +1316,13 @@ router.post(
 **Solution:**
 
 Install dependencies:
+
 ```bash
 npm install speakeasy qrcode
 ```
 
 Create `services/mfaService.js`:
+
 ```javascript
 const speakeasy = require('speakeasy');
 const QRCode = require('qrcode');
@@ -1340,6 +1375,7 @@ module.exports = MFAService;
 ```
 
 Update EndUser model:
+
 ```javascript
 // models/endUser.js
 const schema = new mongoose.Schema({
@@ -1369,6 +1405,7 @@ const schema = new mongoose.Schema({
 ```
 
 Create MFA endpoints:
+
 ```javascript
 // controllers/api/mfa.js
 const MFAService = require('../../services/mfaService');
@@ -1508,45 +1545,50 @@ exports.loginWithMfa = async (req, res) => {
 ## 🟢 IMPLEMENTATION ROADMAP
 
 ### Phase 1: Critical Fixes (Weeks 1-2)
-- [ ] Session cookie security configuration
-- [ ] CSRF protection middleware
-- [ ] XSS prevention & sanitization
-- [ ] Secret key management validation
-- [ ] Testing & validation
+
+- Session cookie security configuration
+- CSRF protection middleware
+- XSS prevention & sanitization
+- Secret key management validation
+- Testing & validation
 
 **Deliverable:** Eliminate all 🔴 CRITICAL security risks
 
 ### Phase 2: High Priority (Weeks 3-4)
-- [ ] NoSQL injection hardening
-- [ ] Security headers (Helmet)
-- [ ] Email enumeration prevention
-- [ ] Audit logging system
-- [ ] Documentation updates
+
+- NoSQL injection hardening
+- Security headers (Helmet)
+- Email enumeration prevention
+- Audit logging system
+- Documentation updates
 
 **Deliverable:** Implement 🔴 HIGH priority protections
 
 ### Phase 3: Medium Priority (Weeks 5-6)
-- [ ] Advanced rate limiting with Redis
-- [ ] MFA/TOTP implementation
-- [ ] Backup codes system
-- [ ] API rate limiting refinement
+
+- Advanced rate limiting with Redis
+- MFA/TOTP implementation
+- Backup codes system
+- API rate limiting refinement
 
 **Deliverable:** Add 🟡 MEDIUM priority features
 
 ### Phase 4: Advanced Features (Weeks 7-8)
-- [ ] WebAuthn passwordless authentication
-- [ ] IP allowlisting system
-- [ ] Session management dashboard
-- [ ] Incident response automation
+
+- WebAuthn passwordless authentication
+- IP allowlisting system
+- Session management dashboard
+- Incident response automation
 
 **Deliverable:** Enterprise-grade security features
 
 ### Phase 5: Pre-Launch Validation (Weeks 9-10)
-- [ ] Security audit & penetration testing
-- [ ] Compliance verification (GDPR, CCPA)
-- [ ] Load testing with security measures
-- [ ] Documentation finalization
-- [ ] Team training & runbooks
+
+- Security audit & penetration testing
+- Compliance verification (GDPR, CCPA)
+- Load testing with security measures
+- Documentation finalization
+- Team training & runbooks
 
 **Deliverable:** Production-ready certification
 
@@ -1594,74 +1636,83 @@ LOG_LEVEL=info
 ## ✅ Security Testing Checklist
 
 ### Unit Tests
-- [ ] Password hashing verified
-- [ ] JWT token validation
-- [ ] CSRF token generation and validation
-- [ ] Rate limiting behavior
-- [ ] Input sanitization
+
+- Password hashing verified
+- JWT token validation
+- CSRF token generation and validation
+- Rate limiting behavior
+- Input sanitization
 
 ### Integration Tests
-- [ ] End-to-end authentication flow with CSRF
-- [ ] MFA enrollment and login
-- [ ] Audit logging for all actions
-- [ ] Session security across requests
+
+- End-to-end authentication flow with CSRF
+- MFA enrollment and login
+- Audit logging for all actions
+- Session security across requests
 
 ### Security Tests
-- [ ] OWASP Top 10 vulnerability scan
-- [ ] Penetration testing
-- [ ] XSS payload injection tests
-- [ ] SQL/NoSQL injection attempts
-- [ ] CSRF attack simulation
-- [ ] Rate limiting bypass attempts
-- [ ] JWT signature verification
+
+- OWASP Top 10 vulnerability scan
+- Penetration testing
+- XSS payload injection tests
+- SQL/NoSQL injection attempts
+- CSRF attack simulation
+- Rate limiting bypass attempts
+- JWT signature verification
 
 ### Performance Tests
-- [ ] Rate limiting performance impact
-- [ ] Audit logging query performance
-- [ ] Redis failover handling
-- [ ] JWT verification latency
+
+- Rate limiting performance impact
+- Audit logging query performance
+- Redis failover handling
+- JWT verification latency
 
 ---
 
 ## 📋 Pre-Launch Security Checklist
 
 ### Code Quality
-- [ ] No hardcoded secrets in codebase
-- [ ] All environment variables documented
-- [ ] Code review completed
-- [ ] Security linting enabled (`eslint-plugin-security`)
-- [ ] Dependency vulnerabilities resolved
+
+- No hardcoded secrets in codebase
+- All environment variables documented
+- Code review completed
+- Security linting enabled (`eslint-plugin-security`)
+- Dependency vulnerabilities resolved
 
 ### Infrastructure
-- [ ] HTTPS/TLS configured (minimum TLS 1.2)
-- [ ] Security headers enabled
-- [ ] Database encryption at rest
-- [ ] Database backups encrypted
-- [ ] VPN/private network for database access
-- [ ] WAF (Web Application Firewall) enabled
-- [ ] DDoS protection active
+
+- HTTPS/TLS configured (minimum TLS 1.2)
+- Security headers enabled
+- Database encryption at rest
+- Database backups encrypted
+- VPN/private network for database access
+- WAF (Web Application Firewall) enabled
+- DDoS protection active
 
 ### Compliance
-- [ ] Privacy Policy published
-- [ ] Terms of Service published
-- [ ] GDPR data processing agreement
-- [ ] CCPA privacy rights framework
-- [ ] SOC 2 compliance plan
-- [ ] Data retention policy
+
+- Privacy Policy published
+- Terms of Service published
+- GDPR data processing agreement
+- CCPA privacy rights framework
+- SOC 2 compliance plan
+- Data retention policy
 
 ### Monitoring & Alerting
-- [ ] Security event logging active
-- [ ] Real-time alerting for suspicious activity
-- [ ] Incident response plan documented
-- [ ] Team trained on incident response
-- [ ] Penetration testing scheduled (quarterly)
+
+- Security event logging active
+- Real-time alerting for suspicious activity
+- Incident response plan documented
+- Team trained on incident response
+- Penetration testing scheduled (quarterly)
 
 ### Documentation
-- [ ] Security architecture documented
-- [ ] Threat model created
-- [ ] Security runbooks prepared
-- [ ] Data flow diagrams created
-- [ ] API security guidelines published
+
+- Security architecture documented
+- Threat model created
+- Security runbooks prepared
+- Data flow diagrams created
+- API security guidelines published
 
 ---
 
@@ -1753,7 +1804,7 @@ Required training for team:
 
 ## 📞 Support & Escalation
 
-- **Security Issues:** security@voult.dev
+- **Security Issues:** [security@voult.dev](mailto:security@voult.dev)
 - **Urgent:** Escalate to @DevOlabode
 - **Response SLA:** 1 hour for critical issues
 - **Public Disclosure:** Follow 90-day policy

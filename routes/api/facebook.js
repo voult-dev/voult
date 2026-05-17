@@ -2,12 +2,14 @@ const express = require('express');
 const router = express.Router();
 
 const { verifyClient, verifyClientIdOnly } = require('../../middleware/verifyClient');
+const { csrfProtection } = require('../../middleware/csrfProtection');
+
 const catchAsync = require('../../utils/catchAsync');
 
 const controller = require('../../controllers/api/facebook');
 
-router.post('/register', verifyClientIdOnly, catchAsync(controller.facebookRegister));
+router.post('/register', csrfProtection, verifyClientIdOnly, catchAsync(controller.facebookRegister));
 
-router.post('/login', verifyClientIdOnly, catchAsync(controller.facebookLogin));
+router.post('/login', csrfProtection, verifyClientIdOnly, catchAsync(controller.facebookLogin));
 
 module.exports = router;

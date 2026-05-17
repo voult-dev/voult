@@ -5,6 +5,7 @@ const router = express.Router();
 
 const { apiLimiter } = require('../../middleware/rateLimiters');
 
+const { csrfProtection } = require('../../middleware/csrfProtection');
 
 const verifyClient = require('../../middleware/verifyClient').verifyClient;
 const authController = require('../../controllers/api/auth');
@@ -29,14 +30,14 @@ router.use(apiLimiter);
   Authorization: Bearer client_secret
 */
 
-router.post('/register', validate(schemas.registerSchema), verifyClient, validateCallbackUrl, authLimiter, catchAsync(authController.register));
+router.post('/register', csrfProtection, validate(schemas.registerSchema), verifyClient, validateCallbackUrl, authLimiter, catchAsync(authController.register));
 
-router.post('/username-register', validate(schemas.usernameRegisterSchema), verifyClient, validateCallbackUrl, authLimiter, catchAsync(authController.usernameRegister));
+router.post('/username-register', csrfProtection, validate(schemas.usernameRegisterSchema), verifyClient, validateCallbackUrl, authLimiter, catchAsync(authController.usernameRegister));
 
-router.post('/email-login', validate(schemas.loginSchema), verifyClient, authLimiter, validateCallbackUrl, catchAsync(authController.emailLogin));  
+router.post('/email-login', csrfProtection, validate(schemas.loginSchema), verifyClient, authLimiter, validateCallbackUrl, catchAsync(authController.emailLogin));  
 
-router.post('/username-login', validate(schemas.usernameLoginSchema), verifyClient, authLimiter, validateCallbackUrl, catchAsync(authController.usernameLogin));
+router.post('/username-login', csrfProtection, validate(schemas.usernameLoginSchema), verifyClient, authLimiter, validateCallbackUrl, catchAsync(authController.usernameLogin));
 
-router.post('/logout', verifyClient, requireEndUserAuth, requireActiveEndUser, authLimiter, validateCallbackUrl, catchAsync(authController.logout));
+router.post('/logout', csrfProtection, verifyClient, requireEndUserAuth, requireActiveEndUser, authLimiter, validateCallbackUrl, catchAsync(authController.logout));
 
 module.exports = router;

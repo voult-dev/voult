@@ -336,7 +336,7 @@ Upon completion of all security hardening measures outlined in the **SECURITY_HA
 - [x] Add CSRF token endpoint for APIs
 - [x] Update all POST/PUT/DELETE routes
 - [x] Test CSRF rejection for missing tokens
-- [ ] Document CSRF token handling for clients
+- [x] Document CSRF token handling for clients
 
 **XSS Prevention:**
 - [ ] Install `helmet` and `express-validator`

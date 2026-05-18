@@ -90,16 +90,11 @@ const routes = require('../routes/index');
 
 require('../config/database')();
 
-// Session must come before everything that needs it (flash, passport, csrf)
 app.use(session(sessionConfig));
 app.use(flash());
 
 app.use(securityHeaders);
 
-// -----------------------------------------------------------------------
-// Body parsers MUST come before csrfProtection so that csurf can read
-// the _csrf field from urlencoded form bodies (and JSON bodies).
-// -----------------------------------------------------------------------
 app.use(express.json());
 app.use(express.urlencoded({ 
   extended: true,

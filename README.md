@@ -124,7 +124,6 @@ voult/
 - [x] JWT middleware improvements for cleaner user data handling
 - [x] Username-based authentication (registration & login)
 - [x] OAuth middleware integration for multi-provider support
-- [x] Comprehensive TODO documentation with detailed feature tracking
 - [x] Email service configuration updates for consistency
 - [x] Javascript SDK
 

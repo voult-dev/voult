@@ -243,7 +243,7 @@ module.exports.usernameRegister = async (req, res) => {
   await user.save();
 
   // Send verification email if email was provided (non-blocking)
-  if (normalizedEmail) {
+  if (sanitizedEmail) {
     verifyEndUsers(
       user.email,
       app.name,

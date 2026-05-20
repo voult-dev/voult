@@ -513,7 +513,6 @@ npm install isomorphic-dompurify
 
 **Step 4: Update Authentication Controller**
 
-## WHERE AM AT.
 Update `controllers/api/auth.js`
 
 ```javascript

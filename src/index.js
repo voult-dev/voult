@@ -93,8 +93,6 @@ require('../config/database')();
 app.use(session(sessionConfig));
 app.use(flash());
 
-app.use(securityHeaders);
-
 app.use(express.json());
 app.use(express.urlencoded({ 
   extended: true,
@@ -102,6 +100,8 @@ app.use(express.urlencoded({
 }));
 
 app.use(csrfProtection);
+
+// app.use(securityHeaders);
 
 app.use((req, res, next) => {
   if (!req.path.startsWith('/api')) {

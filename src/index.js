@@ -1,5 +1,16 @@
 require('dotenv').config();
 
+// Validate secrets before initializing app
+const { validateSecrets } = require('../config/secrets');
+
+try {
+    validateSecrets();
+} catch (err) {
+    console.error('Fatal Error:', err.message);
+    process.exit(1);
+};
+
+
 ['ENDUSER_JWT_SECRET', 'BASE_URL'].forEach((key) => {
   if (!process.env[key] || !String(process.env[key]).trim()) {
     throw new Error(`${key} is missing or empty. Set it in .env with no spaces around = (e.g. BASE_URL=https://www.voult.dev).`);

@@ -1,38 +1,54 @@
 const jwt = require('jsonwebtoken');
-const crypto = require('crypto')
+const crypto = require('crypto');
 
-if (!process.env.ENDUSER_JWT_SECRET) {
-  throw new Error('ENDUSER_JWT_SECRET is not defined');
+// Validate JWT secret on module load
+if (!process.env.ENDUSER_JWT_SECRET || process.env.ENDUSER_JWT_SECRET.length < 32) {
+    throw new Error('ENDUSER_JWT_SECRET must be set and at least 32 characters long');
 }
 
 const JWT_SECRET = process.env.ENDUSER_JWT_SECRET;
-const JWT_EXPIRES_IN = '7d';
+const JWT_EXPIRES_IN = process.env.NODE_ENV === 'production' ? '15m' : '7d';
+const REFRESH_TOKEN_EXPIRES_IN = process.env.NODE_ENV === 'production' ? '7d' : '30d';
 
-module.exports.signEndUserToken = (endUser, app) => {
-  return jwt.sign(
-    {
-      sub: endUser._id,
-      app: app._id,
-      email: endUser.email,
-      tokenVersion: endUser.tokenVersion
-    },
-    JWT_SECRET,
-    { expiresIn: JWT_EXPIRES_IN }
-  );
-};
-
+// Sign access token with proper configuration
 exports.signAccessToken = (user, app) => {
-  return jwt.sign(
-    {
-      sub: user._id,
-      appId: app._id,
-      tokenVersion: user.tokenVersion
-    },
-    JWT_SECRET,
-    { expiresIn: '15m' }
-  );
+    return jwt.sign(
+        {
+            sub: user._id,
+            appId: app._id,
+            tokenVersion: user.tokenVersion,
+            iat: Math.floor(Date.now() / 1000)
+        },
+        JWT_SECRET,
+        {
+            expiresIn: JWT_EXPIRES_IN,
+            algorithm: 'HS256',
+            issuer: 'voult.dev',
+            audience: app._id.toString()
+        }
+    );
 };
 
-exports.signRefreshToken = () => {
-  return crypto.randomBytes(64).toString('hex');
+// Verify token with strict validation
+exports.verifyAccessToken = (token) => {
+    try {
+        return jwt.verify(token, JWT_SECRET, {
+            algorithms: ['HS256'],
+            issuer: 'voult.dev'
+        });
+    } catch (err) {
+        if (err.name === 'TokenExpiredError') {
+            throw new Error('Token expired');
+        }
+        if (err.name === 'JsonWebTokenError') {
+            throw new Error('Invalid token');
+        }
+        throw err;
+    }
 };
+
+// Generate cryptographically secure refresh token
+exports.signRefreshToken = () => {
+    return crypto.randomBytes(64).toString('hex');
+};
+

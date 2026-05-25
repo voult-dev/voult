@@ -26,7 +26,22 @@ function validateSecrets() {
             description: 'Encryption key for sensitive data'
         }
     };
-    
+
+    // Check rotation dates
+    const rotationSecrets = ['ENDUSER_JWT_SECRET', 'SESSION_SECRET', 'REFRESH_TOKEN_SECRET'];
+    const ninetyDaysMs = 90 * 24 * 60 * 60 * 1000;
+
+    rotationSecrets.forEach(key => {
+    const dateKey = `${key}_ROTATION_DATE`;
+    const rotationDate = process.env[dateKey];
+    if (rotationDate) {
+        const age = Date.now() - new Date(rotationDate).getTime();
+        if (age > ninetyDaysMs) {
+        warnings.push(`⚠️  ${key} was last rotated on ${rotationDate}. Rotation overdue!`);
+        }
+    }
+    });
+        
     const errors = [];
     const warnings = [];
     
@@ -56,7 +71,7 @@ function validateSecrets() {
     }
     
     if (warnings.length > 0 && isProduction) {
-        console.warn('\n⚠️  Secret Strength Warnings:\n');
+        console.warn('\n  Secret Strength Warnings:\n');
         warnings.forEach(warn => console.warn(warn));
     }
     

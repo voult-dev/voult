@@ -10,6 +10,30 @@ try {
     process.exit(1);
 };
 
+const SecretRotationService = require('../services/secretRotation');
+
+const secretsToTrack = [
+  'ENDUSER_JWT_SECRET',
+  'SESSION_SECRET', 
+  'REFRESH_TOKEN_SECRET'
+];
+
+secretsToTrack.forEach(secretName => {
+  const rotator = new SecretRotationService(secretName, 90);
+  if (rotator.shouldRotate()) {
+    const newSecret = rotator.generateNewSecret();
+    rotator.logRotation(null, newSecret);
+    // In production, alert your team via email/Slack here
+  }
+});
+
+const secretsToCheck = ['ENDUSER_JWT_SECRET', 'SESSION_SECRET', 'REFRESH_TOKEN_SECRET'];
+secretsToCheck.forEach(name => {
+  const svc = new SecretRotationService(name, 90);
+  if (svc.shouldRotate()) {
+    console.warn(`⚠️  Secret rotation due: ${name} (last rotated ${svc.getRotationDate().toDateString()})`);
+  }
+});  
 
 ['ENDUSER_JWT_SECRET', 'BASE_URL'].forEach((key) => {
   if (!process.env[key] || !String(process.env[key]).trim()) {

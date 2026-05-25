@@ -10,9 +10,9 @@ const sessionConfig = {
 
   cookie: {
     // Secure in production, otherwise based on environment
-    secure: isProduction ? true : false,
+    secure: isProduction ? 'auto' : false,
     httpOnly: true,
-    sameSite: 'strict',
+    sameSite: 'lax',
     path: '/',
     // Domain restriction: in production, set to your domain; in development, leave undefined
     domain: isProduction ? process.env.SESSION_COOKIE_DOMAIN : undefined,

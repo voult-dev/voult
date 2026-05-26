@@ -17,7 +17,7 @@ const sessionConfig = {
     // Domain restriction: in production, set to your domain; in development, leave undefined
     domain: isProduction ? process.env.SESSION_COOKIE_DOMAIN : undefined,
     maxAge: isProduction
-      ? 1000 * 60 * 60 * 2 // 2 hours in production (reduced from 24 hours)
+      ? 1000 * 60 * 60 * 24 // 2 hours in production (reduced from 24 hours)
       : 1000 * 60 * 60 * 24 * 7, // 1 week in development
   },
 };

@@ -1,7 +1,7 @@
 const isProduction = process.env.NODE_ENV === 'production';
 
 const sessionConfig = {
-  secret: process.env.SECRET,
+  secret: process.env.SECRET || process.env.SESSION_SECRET,
 
   resave: false,
   saveUninitialized: false,
@@ -22,9 +22,9 @@ const sessionConfig = {
   },
 };
 
-if (!process.env.SECRET && isProduction) {
+if ((!process.env.SECRET && !process.env.SESSION_SECRET) && isProduction) {
   throw new Error(
-    'SECRET environment variable is required in production'
+    'SECRET or SESSION_SECRET environment variable is required in production'
   );
 }
 

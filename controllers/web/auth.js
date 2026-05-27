@@ -142,6 +142,7 @@ module.exports.loginForm = async (req, res, next) => {
 module.exports.login = async (req, res) => {
   req.user.lastLoginAt = new Date();
   await req.user.save();
+  await saveSession(req);
 
   req.flash('success', 'Welcome back');
   const returnUrl = res.locals.returnTo || '/';

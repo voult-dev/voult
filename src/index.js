@@ -143,8 +143,12 @@ app.use((req, res, next) => {
     try {
       res.locals.csrfToken = req.csrfToken();
     } catch (err) {
+      // Session may not be initialized yet on first request
       res.locals.csrfToken = '';
+      console.warn('csrfToken generation failed:', err.message);
     }
+  } else {
+    res.locals.csrfToken = '';
   }
   next();
 });
@@ -203,7 +207,7 @@ app.use((err, req, res, next) => {
     }
     // For web routes, flash and redirect
     req.flash('error', 'Form session expired. Please try again.');
-    return res.redirect('back');
+    return res.redirect('/');
   }
 
   // API error handler

@@ -139,14 +139,18 @@ module.exports.loginForm = async (req, res, next) => {
   }
 };
 
-module.exports.login = async (req, res) => {
-  req.user.lastLoginAt = new Date();
-  await req.user.save();
-  await saveSession(req);
+module.exports.login = async (req, res, next) => {
+  try {
+    req.user.lastLoginAt = new Date();
+    await req.user.save();
+    await saveSession(req);
 
-  req.flash('success', 'Welcome back');
-  const returnUrl = res.locals.returnTo || '/';
-  res.redirect(returnUrl);
+    req.flash('success', 'Welcome back');
+    const returnUrl = res.locals.returnTo || '/';
+    res.redirect(returnUrl);
+  } catch (err) {
+    next(err);
+  }
 };
 
 module.exports.registerForm = (req, res) => {

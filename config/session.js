@@ -22,10 +22,10 @@ const sessionConfig = {
    },
 };
 
-// if ((!process.env.SECRET && !process.env.SESSION_SECRET) && isProduction) {
-//   throw new Error(
-//     'SECRET or SESSION_SECRET environment variable is required in production'
-//   );
-// }
+if ((!process.env.SECRET && !process.env.SESSION_SECRET) && isProduction) {
+  throw new Error(
+    'SECRET or SESSION_SECRET environment variable is required in production'
+  );
+}
 
 module.exports = sessionConfig;

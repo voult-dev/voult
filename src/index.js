@@ -139,16 +139,25 @@ app.use(csrfProtection);
 // app.use(securityHeaders);
 
 app.use((req, res, next) => {
-  if (!req.path.startsWith('/api')) {
-    try {
-      res.locals.csrfToken = req.csrfToken();
-    } catch (err) {
-      // Session may not be initialized yet on first request
-      res.locals.csrfToken = '';
-      console.warn('csrfToken generation failed:', err.message);
-    }
-  } else {
+  if (req.path.startsWith('/api')) {
     res.locals.csrfToken = '';
+    return next();
+  }
+  // Only generate token if session exists
+  if (!req.session || !req.session.id) {
+    res.locals.csrfToken = '';
+    return next();
+  }
+  try {
+    res.locals.csrfToken = req.csrfToken();
+  } catch (err) {
+    // Force session regeneration on CSRF secret loss
+    req.session.regenerate((e) => {
+      try { res.locals.csrfToken = req.csrfToken(); }
+      catch (_) { res.locals.csrfToken = ''; }
+      next();
+    });
+    return;
   }
   next();
 });

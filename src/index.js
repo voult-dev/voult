@@ -33,7 +33,7 @@ secretsToCheck.forEach(name => {
   if (svc.shouldRotate()) {
     console.warn(`⚠️  Secret rotation due: ${name} (last rotated ${svc.getRotationDate().toDateString()})`);
   }
-});  
+});
 
 ['ENDUSER_JWT_SECRET', 'BASE_URL'].forEach((key) => {
   if (!process.env[key] || !String(process.env[key]).trim()) {

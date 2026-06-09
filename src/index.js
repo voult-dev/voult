@@ -3,6 +3,8 @@ require('dotenv').config();
 // Validate secrets before initializing app
 const { validateSecrets } = require('../config/secrets');
 
+const {generateSecret} = require('./secrets/secertGenerator');
+
 try {
     validateSecrets();
 } catch (err) {

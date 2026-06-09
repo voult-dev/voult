@@ -2,14 +2,7 @@
 
 const crypto = require('crypto');
 
-class SecretGenerator {
-    constructor() {
-        this.secret = crypto.randomBytes(32).toString('hex');
-    }
-
-    generateSecret() {
-        return this.secret;
-    }
-}
-
-module.exports = SecretGenerator;
+module.exports.generateSecret = async (length = 32) => {
+    const secret = await crypto.randomBytes(Math.ceil(length / 2)).toString('hex').slice(0, length);
+    return secret;
+};

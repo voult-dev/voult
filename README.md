@@ -111,24 +111,36 @@ const loginResponse = await fetch('/api/auth/login', {
 
 ```bash
 voult/
-├── config/          # App & auth configuration
-├── controllers/     # Request handlers (auth, users, OAuth, magic links, etc.)
-├── models/          # Mongoose schemas
-├── routes/          # API routes
-├── services/        # Business logic (tokens, email, OAuth, magic links, etc.)
-├── validators/      # Input validation logic
-├── utils/           # Shared utilities
-├── views/           # EJS templates
-├── public/          # Static assets
-├── TODO.md          # Product roadmap
-└── structure.md     # Architecture notes
+├── config/           # App & auth configuration
+├── controllers/      # Request handlers (auth, users, OAuth, magic links, etc.)
+├── models/           # Mongoose schemas
+├── routes/           # API routes
+├── services/         # Business logic (tokens, email, OAuth, magic links, etc.)
+├── validators/       # Input validation logic
+├── utils/            # Shared utilities
+├── views/            # EJS templates
+├── public/           # Static assets
+├── src/
+│   └── secrets/      # Secret tracking & rotation service
+├── tests/            # Test files
+├── TODO.md           # Product roadmap
+└── structure.md      # Architecture notes
 ```
 
 ---
 
 ## Latest Updates
 
-**Recent Enhancements (May 2026):**
+**Recent Enhancements (June 2026):**
+
+- [x] ESLint security plugin integration with 11 security rules
+- [x] Secret management architecture implementation (`src/secrets/`)
+- [x] `VersionTracker` class for tracking secret rotation dates
+- [x] `SecretService` singleton for secret validation and retrieval
+- [x] Hardened security linting with disable comments for safe patterns
+- [x] Code quality fixes: removed unused imports, fixed undefined globals
+
+**Previous Enhancements (May 2026):**
 
 - [x] Enhanced magic link functionality with atomic token claiming and redirect URI allowlisting (WIP)
 - [x] API rate limiting for magic link routes
@@ -139,3 +151,32 @@ voult/
 - [x] Javascript SDK
 
 ---
+
+## Security Configuration
+
+The project uses `eslint-plugin-security` with the following rules enabled:
+
+```json
+{
+  "security/detect-object-injection": "error",
+  "security/detect-non-literal-fs-filename": "warn",
+  "security/detect-unsafe-regex": "error",
+  "security/detect-eval-with-expression": "error",
+  "security/detect-no-csrf-before-method-override": "error",
+  "security/detect-non-literal-require": "warn",
+  "security/detect-pseudoRandomBytes": "error",
+  "security/detect-possible-timing-attacks": "warn",
+  "security/detect-buffer-noassert": "error",
+  "security/detect-child-process": "warn",
+  "security/detect-disable-mustache-escape": "error"
+}
+```
+
+---
+
+## Development
+
+```bash
+npm run lint              # Run ESLint on all JS files
+npm run lint:security     # Run security-specific linting
+```

@@ -1,4 +1,4 @@
-# Voult.dev — Architecture Deep Dive
+ # Voult.dev — Architecture Deep Dive
 
 > A complete guide to understanding data flow, authentication, sessions, tokens, and how to consume the Voult API from an external codebase.
 
@@ -21,6 +21,7 @@
 13. [Database Models & Their Relationships](#13-database-models--their-relationships)
 14. [Error Propagation Architecture](#14-error-propagation-architecture)
 15. [Key Architectural Patterns to Know](#15-key-architectural-patterns-to-know)
+16. [Secret Management Architecture](#16-secret-management-architecture)
 
 ---
 
@@ -128,6 +129,12 @@ voult/
 │   ├── magicLinkEmail.js ← Magic link email
 │   └── oauth/
 │       └── generateProviderAuthUrl.js ← Builds OAuth redirect URLs
+│
+├── secrets/
+│   ├── secretGenerator.js    ← Generates cryptographically strong secrets
+│   ├── versionTracker.js     ← Tracks secret versions and rotation dates
+│   ├── secretService.js      ← Centralized secret access with validation
+│   └── secrets.json          ← Secret metadata (gitignored)
 │
 └── validators/
     ├── api/endUserAuth.js  ← Joi schemas for API auth endpoints
@@ -1193,6 +1200,38 @@ EndUser.findOne({ app: req.appClient._id, email: normalizedEmail })
 
 This means the same email can exist in two different apps and they don't conflict.
 
+### 7. Secret Management Architecture
+
+All secrets are managed through a centralized `SecretService` with validation and rotation support:
+
+```javascript
+// src/secrets/secretService.js
+const secretService = getSecretService();
+
+// Initialize at startup
+secretService.initialize(['ENDUSER_JWT_SECRET', 'SESSION_SECRET']);
+
+// Get secret with automatic version resolution
+const jwtSecret = secretService.getSecret('ENDUSER_JWT_SECRET');
+
+// Check rotation status
+const overdueSecrets = secretService.checkAllSecretsRotation(90);
+```
+
+**Components:**
+- `secretGenerator.js` - Generates cryptographically strong secrets using `crypto.randomBytes(32)`
+- `versionTracker.js` - Tracks secret versions and rotation dates in `secrets.json`
+- `secretService.js` - Singleton pattern for centralized access
+
+**Security properties:**
+- Secrets validated at startup (minimum 32 characters)
+- Supports versioned keys (e.g., `ENDUSER_JWT_SECRET_V1`, `ENDUSER_JWT_SECRET_V2`)
+- Rotation warnings logged at startup (90-day threshold)
+- Production mode works without `secrets.json` file (reads from env vars)
+- All secrets gitignored (`src/secrets/secrets.json`)
+
+---
+
 ### 2. Token hashing for storage
 
 Raw tokens are never stored in the database. Only their SHA-256 hashes are:
@@ -1257,6 +1296,8 @@ The codebase checks `process.env.NODE_ENV` for critical security decisions. A su
 | JWT expiry              | `7d` (some places) | `15m`            |
 | TLS for SMTP            | Optional           | Required         |
 | SECRET validation       | Warning            | Hard throw       |
+| Secret management       | Optional           | Required         |
+| Security headers        | Enabled            | Enabled          |
 
 
 ### 7. The `req` object as a data bus

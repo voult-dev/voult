@@ -360,7 +360,7 @@ Upon completion of all security hardening measures outlined in the **SECURITY_HA
 **Testing & Validation:**
 - [x] Create unit tests for all fixes
 - [x] Create integration tests
-- [ ] Run security linting
+- [x] Run security linting
 - [x] Manual security review
 - [x] Update documentation
 - [x] Deploy to staging

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-const { verifyClient, verifyClientIdOnly } = require('../../middleware/verifyClient');
+const { verifyClientIdOnly } = require('../../middleware/verifyClient');
 const { csrfProtection } = require('../../middleware/csrfProtection');
 
 const catchAsync = require('../../utils/catchAsync');

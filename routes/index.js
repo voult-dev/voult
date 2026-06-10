@@ -18,7 +18,6 @@ const apiLinkedin = require('./api/linkedin');
 const apiMicorsoft  = require('./api/microsoft');
 const oauthLinking = require('./api/oauthLinking');
 const oauth = require('./api/oauth');
-const providerVisibility = require('./api/providerVisibility');
 const userOAuthAccounts = require('./api/userOAuthAccounts');
 const magicLinkRoutes = require('./api/magicLink');
 

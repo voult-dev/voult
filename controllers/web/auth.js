@@ -37,7 +37,7 @@ function extractOAuthDetail(err) {
       const j = JSON.parse(inner.data);
       if (j?.error) parts.push(j.error);
       if (j?.error_description) parts.push(j.error_description);
-    } catch (_) {
+    } catch {
       /* ignore */
     }
   }
@@ -263,7 +263,7 @@ module.exports.googleLinkCallback = (req, res, next) => {
   passport.authenticate(
     'google',
     { callbackURL, failureRedirect: '/settings' },
-    async (err, user, info) => {
+    async (err, user) => {
       if (err) {
         logOAuthError('google-link', err, callbackURL);
         req.flash('error', oauthErrorMessage('google', err));
@@ -320,7 +320,7 @@ module.exports.githubLinkCallback = (req, res, next) => {
   passport.authenticate(
     'github',
     { callbackURL, failureRedirect: '/settings' },
-    async (err, user, info) => {
+    async (err, user) => {
       if (err) {
         logOAuthError('github-link', err, callbackURL);
         req.flash('error', oauthErrorMessage('github', err));

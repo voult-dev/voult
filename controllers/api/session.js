@@ -2,7 +2,7 @@ const RefreshToken = require('../../models/refreshToken');
 const {ApiError} = require('../../utils/apiError');
 
 const { createRefreshToken } = require('../../utils/refreshToken');
-const { signAccessToken, signRefreshToken } = require('../../utils/jwt');
+const { signAccessToken } = require('../../utils/jwt');
 
 // =======================
 // LIST SESSIONS

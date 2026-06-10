@@ -1,6 +1,6 @@
 require('dotenv').config();
 
-const { SecretService, getSecretService } = require('./secrets/secretService');
+const { getSecretService } = require('./secrets/secretService');
 const { validateSecrets } = require('../config/secrets');
 
 const secretService = getSecretService();
@@ -51,9 +51,8 @@ const session = require('express-session');
 const flash = require('connect-flash');
 
 const passport = require('../config/passport');
-const { listGoogleRedirectUris } = require('../utils/resolveOAuthCallbackUrl');
 
-const { csrfProtection, generateCsrfToken } = require('../middleware/csrfProtection');
+const { csrfProtection } = require('../middleware/csrfProtection');
 const securityHeaders = require('../middleware/securityHeaders');
 
 const sessionConfig = require('../config/session');
@@ -143,11 +142,11 @@ app.use((req, res, next) => {
   }
   try {
     res.locals.csrfToken = req.csrfToken();
-  } catch (err) {
+  } catch {
     // Force session regeneration on CSRF secret loss
-    req.session.regenerate((e) => {
+    req.session.regenerate(() => {
       try { res.locals.csrfToken = req.csrfToken(); }
-      catch (_) { res.locals.csrfToken = ''; }
+      catch { res.locals.csrfToken = ''; }
       next();
     });
     return;
@@ -184,6 +183,7 @@ app.use(routes);
 // Error Handler
 const { sendError } = require('../utils/apiError');
 
+// eslint-disable-next-line no-unused-vars
 app.use('/api', (err, req, res, next) => {
   console.error('API ERROR:', err);
   return sendError(res, err);
@@ -193,6 +193,7 @@ app.use((req, res, next) => {
   next(new ExpressError('Page Not Found', 404));
 });
 
+// eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
   const status = err.statusCode || err.status || 500;
 

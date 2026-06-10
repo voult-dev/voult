@@ -14,12 +14,6 @@ function decodeState(state) {
   );
 }
 
-function encodeState(stateObj) {
-  return Buffer
-    .from(JSON.stringify(stateObj))
-    .toString('base64url');
-}
-
 // Generate OAuth authorization URL
 exports.generateAuthUrl = async (req, res) => {
   try {

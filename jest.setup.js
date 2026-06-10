@@ -5,7 +5,7 @@ jest.mock('node-fetch');
 // Mock isomorphic-dompurify to handle ESM compatibility
 jest.mock('isomorphic-dompurify', () => ({
 	default: {
-		sanitize: (input, options) => {
+		sanitize: (input) => {
 			if (typeof input !== 'string') return input;
 			// Simple sanitization: remove HTML tags
 			return input

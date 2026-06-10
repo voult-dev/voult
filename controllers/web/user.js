@@ -2,8 +2,6 @@ const User = require('../../models/developer');
 const App = require('../../models/app');
 
 const crypto = require('crypto');
-const bcrypt = require('bcrypt');
-const { promisify } = require('util');
 const { validatePassword } = require('../../validators/password');
 
 module.exports.dashboard = async (req, res) => {

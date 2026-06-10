@@ -45,7 +45,7 @@ module.exports.sendLink = async (req, res) => {
   // Validate redirectUri format (must be a valid URL)
   try {
     new URL(redirectUri);
-  } catch (e) {
+  } catch {
     throw new ApiError(400, 'VALIDATION_ERROR', 'Invalid redirect URI format. Must be a valid URL.');
   }
 

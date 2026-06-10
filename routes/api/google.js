@@ -3,7 +3,7 @@ const router = express.Router();
 
 const controller = require('../../controllers/api/google');
 
-const { verifyClient, verifyClientIdOnly } = require('../../middleware/verifyClient');
+const { verifyClientIdOnly } = require('../../middleware/verifyClient');
 const { csrfProtection } = require('../../middleware/csrfProtection');
 
 const validateCallbackUrl = require('../../middleware/validateCallbackUrl');

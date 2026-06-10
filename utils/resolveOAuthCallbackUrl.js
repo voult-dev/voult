@@ -110,7 +110,7 @@ function listGoogleRedirectUris() {
         const apex = `${u.protocol}//${u.hostname.slice(4)}`;
         paths.forEach((p) => uris.add(`${apex}${p}`));
       }
-    } catch (_) {
+    } catch {
       /* ignore */
     }
   }

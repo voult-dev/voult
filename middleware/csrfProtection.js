@@ -1,5 +1,4 @@
 const csrf = require('csurf');
-const session = require('express-session');
 
 // CSRF protection middleware
 const csrfProtection = csrf({ 

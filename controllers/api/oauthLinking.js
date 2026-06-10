@@ -1,5 +1,4 @@
 const OAuthAccount = require('../../models/OAuthAccount');
-const User = require('../../models/endUser');
 const bcrypt = require('bcrypt');
 const generateProviderAuthUrl = require('../../services/oauth/generateProviderAuthUrl')
 

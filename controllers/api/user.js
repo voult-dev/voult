@@ -1,18 +1,10 @@
 const EndUser = require('../../models/endUser');
-const { signEndUserToken } = require('../../utils/jwt');
 const { ApiError } = require('../../utils/apiError');
-const App = require('../../models/app');
 
 const crypto = require('crypto');
 
 // EMAILS
-const {verifyEndUsers, sendPasswordResetEmail} = require('../../services/emailService');
-
-
-// TOKENS
-const RefreshToken = require('../../models/refreshToken');
-const { signAccessToken, signRefreshToken } = require('../../utils/jwt');
-const { createRefreshToken } = require('../../utils/refreshToken')
+const { sendPasswordResetEmail } = require('../../services/emailService');
 
 
 // PASSWORDS RULES
@@ -265,7 +257,6 @@ module.exports.verifyEmail = async (req, res) => {
 // =======================
 module.exports.updateProfile = async (req, res) => {
   const user = req.endUser;
-  const app = req.appClient;
 
   if (!user) {
     throw new ApiError(

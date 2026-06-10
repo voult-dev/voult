@@ -23,7 +23,7 @@ async function getGooglePayload({ idToken, accessToken, clientId }) {
         ...ticket.getPayload(),
         _tokenType: 'id_token'
       };
-    } catch (err) {
+    } catch {
       // If accessToken exists, fallback. Otherwise fail.
       if (!accessToken) {
         throw new ApiError(

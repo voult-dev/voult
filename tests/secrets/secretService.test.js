@@ -1,4 +1,4 @@
-const { SecretService, getSecretService } = require('../../src/secrets/secretService');
+const { getSecretService } = require('../../src/secrets/secretService');
 const fs = require('fs');
 const path = require('path');
 

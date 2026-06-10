@@ -63,7 +63,7 @@ module.exports = async function exchangeCodeForToken(provider, code, app) {
         })
       ).data;
 
-    case 'microsoft':
+    case 'microsoft': {
       if (!app || !app.microsoftOAuth) {
         throw new Error('MICROSOFT_OAUTH_NOT_CONFIGURED_FOR_APP');
       }
@@ -77,8 +77,9 @@ module.exports = async function exchangeCodeForToken(provider, code, app) {
           redirect_uri: app.microsoftOAuth.redirectUri
         })
       ).data;
+    }
 
-    case 'apple':
+    case 'apple': {
       if (!app || !app.appleOAuth) {
         throw new Error('APPLE_OAUTH_NOT_CONFIGURED_FOR_APP');
       }
@@ -93,6 +94,7 @@ module.exports = async function exchangeCodeForToken(provider, code, app) {
           redirect_uri: app.appleOAuth.redirectUri
         })
       ).data;
+    }
 
     default:
       throw new Error('TOKEN_EXCHANGE_NOT_IMPLEMENTED');

@@ -27,7 +27,7 @@ module.exports.getProviderVisibility = async (req, res) => {
 
     return res.json({ providers: visibility });
     
-  } catch (err) {
+  } catch {
     throw new ApiError(
       500,
       'FETCH_PROVIDER_VISIBILITY_FAILED',

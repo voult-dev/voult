@@ -32,6 +32,7 @@ module.exports = [
         require: 'readonly',
         Buffer: 'readonly',
         URL: 'readonly',
+        URLSearchParams: 'readonly',
         setTimeout: 'readonly',
         clearTimeout: 'readonly',
         setInterval: 'readonly',

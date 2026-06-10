@@ -1,7 +1,6 @@
 const mongoose = require('mongoose');
 const plm = require('passport-local-mongoose');
 const passportLocalMongoose = plm.default || plm;
-const crypto = require('crypto');
 
 const {Schema} = mongoose;
 

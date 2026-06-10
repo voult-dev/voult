@@ -8,7 +8,6 @@ if (!process.env.ENDUSER_JWT_SECRET || process.env.ENDUSER_JWT_SECRET.length < 3
 
 const JWT_SECRET = process.env.ENDUSER_JWT_SECRET;
 const JWT_EXPIRES_IN = process.env.NODE_ENV === 'production' ? '15m' : '7d';
-const REFRESH_TOKEN_EXPIRES_IN = process.env.NODE_ENV === 'production' ? '7d' : '30d';
 
 // Sign access token with proper configuration
 exports.signAccessToken = (user, app) => {

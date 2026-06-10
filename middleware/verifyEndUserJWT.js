@@ -61,7 +61,7 @@ module.exports.verifyEndUserJWT = async (req, res, next) => {
     };
 
     next();
-  } catch (err) {
+  } catch {
     next();
   }
 };

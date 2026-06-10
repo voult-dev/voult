@@ -1,4 +1,4 @@
-const { body, validationResult, query } = require('express-validator');
+const { body, validationResult } = require('express-validator');
 const DOMPurify = require('isomorphic-dompurify');
 
 // Sanitize function that removes dangerous content

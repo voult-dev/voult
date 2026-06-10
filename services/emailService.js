@@ -1,9 +1,5 @@
 const { transporter } = require('../config/mailer');
 
-// In development we log instead of sending, unless SEND_EMAILS=true (e.g. for testing OAuth welcome emails)
-const isDevelopment = process.env.NODE_ENV !== 'production';
-const shouldSendEmails = process.env.SEND_EMAILS === 'true' || !isDevelopment;
-
 // function logEmail(to, subject, body, link) {
 //   console.log('[Email (dev)]', { to, subject, body, link });
 // }

@@ -1,29 +1,17 @@
 const express = require('express');
 const router = express.Router();
 
-//Rate Limiters
-
 const { apiLimiter } = require('../../middleware/rateLimiters');
-
 const { csrfProtection } = require('../../middleware/csrfProtection');
-
 const verifyClient = require('../../middleware/verifyClient').verifyClient;
 const authController = require('../../controllers/api/auth');
-
 const requireEndUserAuth = require('../../middleware/requireEndUserAuth');
 const requireActiveEndUser = require('../../middleware/requireActiveEndUser');
-
 const { authLimiter } = require('../../middleware/rateLimiters');
-
 const { validate } = require('../../validators/validate');
 const schemas = require('../../validators/api/endUserAuth');
-
-// Input sanitization and validation
-const { validators, handleValidationErrors } = require('../../middleware/inputSanitization');
-
-const catchAsync  = require('../../utils/catchAsync');
-
 const validateCallbackUrl = require('../../middleware/validateCallbackUrl');
+const catchAsync  = require('../../utils/catchAsync');
 
 router.use(apiLimiter);
 

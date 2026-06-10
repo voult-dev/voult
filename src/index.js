@@ -1,40 +1,29 @@
 require('dotenv').config();
 
-// Validate secrets before initializing app
+const { SecretService, getSecretService } = require('./secrets/secretService');
 const { validateSecrets } = require('../config/secrets');
 
-const {generateSecret} = require('./secrets/secertGenerator');
+const secretService = getSecretService();
+
+const secretsToTrack = [
+  'ENDUSER_JWT_SECRET',
+  'SESSION_SECRET',
+  'REFRESH_TOKEN_SECRET'
+];
 
 try {
+    secretService.initialize(secretsToTrack);
     validateSecrets();
 } catch (err) {
     console.error('Fatal Error:', err.message);
     process.exit(1);
-};
+}
 
-const SecretRotationService = require('../services/secretRotation');
+const rotationThresholdDays = 90;
+const secretsNeedingRotation = secretService.checkAllSecretsRotation(rotationThresholdDays);
 
-const secretsToTrack = [
-  'ENDUSER_JWT_SECRET',
-  'SESSION_SECRET', 
-  'REFRESH_TOKEN_SECRET'
-];
-
-secretsToTrack.forEach(secretName => {
-  const rotator = new SecretRotationService(secretName, 90);
-  if (rotator.shouldRotate()) {
-    const newSecret = rotator.generateNewSecret();
-    rotator.logRotation(null, newSecret);
-    // In production, alert your team via email/Slack here
-  }
-});
-
-const secretsToCheck = ['ENDUSER_JWT_SECRET', 'SESSION_SECRET', 'REFRESH_TOKEN_SECRET'];
-secretsToCheck.forEach(name => {
-  const svc = new SecretRotationService(name, 90);
-  if (svc.shouldRotate()) {
-    console.warn(`⚠️  Secret rotation due: ${name} (last rotated ${svc.getRotationDate().toDateString()})`);
-  }
+secretsNeedingRotation.forEach(({ name, daysSinceRotation }) => {
+    console.warn(`⚠️  Secret rotation due: ${name} (last rotated ${daysSinceRotation} days ago)`);
 });
 
 ['ENDUSER_JWT_SECRET', 'BASE_URL'].forEach((key) => {

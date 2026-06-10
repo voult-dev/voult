@@ -1,6 +1,5 @@
-const crypto = require('crypto');
+const { isStrongSecret } = require('../src/secrets/secretGenerator');
 
-// Validate that all required secrets are present and strong
 function validateSecrets() {
     const isProduction = process.env.NODE_ENV === 'production';
     
@@ -27,43 +26,25 @@ function validateSecrets() {
         }
     };
 
-    // Check rotation dates
-    const rotationSecrets = ['ENDUSER_JWT_SECRET', 'SESSION_SECRET', 'REFRESH_TOKEN_SECRET'];
-    const ninetyDaysMs = 90 * 24 * 60 * 60 * 1000;
-
-    rotationSecrets.forEach(key => {
-    const dateKey = `${key}_ROTATION_DATE`;
-    const rotationDate = process.env[dateKey];
-    if (rotationDate) {
-        const age = Date.now() - new Date(rotationDate).getTime();
-        if (age > ninetyDaysMs) {
-        warnings.push(`⚠️  ${key} was last rotated on ${rotationDate}. Rotation overdue!`);
-        }
-    }
-    });
-        
     const errors = [];
     const warnings = [];
     
     Object.entries(requiredSecrets).forEach(([key, config]) => {
-        const value = process.env[key];
+        const value = process.env[key] || process.env[`${key}_V1`];
         
-        // Check if required
         if (config.required && !value) {
             errors.push(`❌ Missing required secret: ${key} (${config.description})`);
         }
         
-        // Check minimum length
         if (value && value.length < config.minLength) {
             errors.push(`❌ ${key} is too short. Minimum ${config.minLength} characters required, got ${value.length}`);
         }
         
-        // Warn if not strong enough
         if (value && !isStrongSecret(value)) {
             warnings.push(`⚠️  ${key} appears weak. Consider using a cryptographically strong value`);
         }
     });
-    
+
     if (errors.length > 0) {
         console.error('\n🔒 Secret Validation Failed:\n');
         errors.forEach(err => console.error(err));
@@ -78,40 +59,7 @@ function validateSecrets() {
     return true;
 }
 
-// Check if a secret is cryptographically strong
-function isStrongSecret(secret) {
-    if (secret.length < 32) return false;
-    
-    const entropy = calculateEntropy(secret);
-    return entropy > 128;  // At least 128 bits of entropy
-}
-
-// Calculate Shannon entropy
-function calculateEntropy(str) {
-    const len = str.length;
-    const frequencies = {};
-    
-    for (let i = 0; i < len; i++) {
-        const char = str[i];
-        frequencies[char] = (frequencies[char] || 0) + 1;
-    }
-    
-    let entropy = 0;
-    for (const char in frequencies) {
-        const p = frequencies[char] / len;
-        entropy -= p * Math.log2(p);
-    }
-    
-    return entropy * len;
-}
-
-// Generate a strong random secret for initialization
-function generateStrongSecret(length = 32) {
-    return crypto.randomBytes(Math.ceil(length / 2)).toString('hex').slice(0, length);
-}
-
 module.exports = {
     validateSecrets,
-    generateStrongSecret,
     isStrongSecret
 };

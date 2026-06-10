@@ -38,6 +38,9 @@ lib/
 .env.*.local
 .env.local
 
+# Secrets metadata
+src/secrets/secrets.json
+
 # Editor directories and files
 .vscode/
 .idea/

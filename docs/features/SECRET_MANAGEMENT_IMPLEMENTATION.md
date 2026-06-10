@@ -179,7 +179,12 @@ const { versionedKey, newSecret } = svc.rotateSecret('ENDUSER_JWT_SECRET');
 | `src/secrets/secretService.js` | Implemented - Centralized secret access |
 | `src/secrets/secrets.json` | Created - Secret metadata storage |
 | `config/secrets.js` | Modified - Uses SecretGenerator, supports versioned keys |
-| `src/index.js` | Modified - Initializes SecretService at startup |
+| `src/index.js` | Modified - Initializes SecretService at startup, enables securityHeaders |
 | `.env` | Modified - Added versioned secret keys |
 | `.gitignore` | Modified - Added secrets.json to ignore list |
 | `docs/SECRET_ROTATION_PROCEDURE.md` | Created - Team rotation guide |
+| `tests/secrets/secretGenerator.test.js` | Created - Unit tests for secret generation |
+| `tests/secrets/versionTracker.test.js` | Created - Unit tests for version tracking |
+| `tests/secrets/secretService.test.js` | Created - Unit tests for service |
+| `tests/secrets/config.test.js` | Created - Unit tests for validation |
+| `tests/secrets/startup.test.js` | Created - Integration tests for startup |

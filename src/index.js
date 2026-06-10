@@ -125,9 +125,9 @@ app.use(express.urlencoded({
   limit: '10kb'
 }));
 
-app.use(csrfProtection);
+app.use(securityHeaders);
 
-// app.use(securityHeaders);
+app.use(csrfProtection);
 
 app.use((req, res, next) => {
   if (req.path.startsWith('/api')) {

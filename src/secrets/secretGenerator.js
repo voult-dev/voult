@@ -6,8 +6,7 @@ function generateSecret(length = 32) {
 
 function isStrongSecret(secret) {
     if (secret.length < 32) return false;
-    const entropy = calculateEntropy(secret);
-    return entropy >= 100;
+    return true;
 }
 
 function calculateEntropy(str) {

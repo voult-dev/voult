@@ -30,6 +30,7 @@ function validateSecrets() {
     const warnings = [];
     
     Object.entries(requiredSecrets).forEach(([key, config]) => {
+        // eslint-disable-next-line security/detect-object-injection
         const value = process.env[key] || process.env[`${key}_V1`];
         
         if (config.required && !value) {

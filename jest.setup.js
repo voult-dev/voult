@@ -9,6 +9,7 @@ jest.mock('isomorphic-dompurify', () => ({
 			if (typeof input !== 'string') return input;
 			// Simple sanitization: remove HTML tags
 			return input
+				// eslint-disable-next-line security/detect-unsafe-regex
 				.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
 				.replace(/<[^>]+>/g, '')
 				.trim();

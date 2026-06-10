@@ -26,6 +26,8 @@ secretsNeedingRotation.forEach(({ name, daysSinceRotation }) => {
     console.warn(`⚠️  Secret rotation due: ${name} (last rotated ${daysSinceRotation} days ago)`);
 });
 
+// Check required secrets with hardcoded keys - safe pattern
+/* eslint-disable security/detect-object-injection */
 ['ENDUSER_JWT_SECRET', 'BASE_URL'].forEach((key) => {
   if (!process.env[key] || !String(process.env[key]).trim()) {
     throw new Error(`${key} is missing or empty. Set it in .env with no spaces around = (e.g. BASE_URL=https://www.voult.dev).`);

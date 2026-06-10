@@ -1,5 +1,8 @@
 const { ApiError } = require('../utils/apiError');
 
+// This validator uses dynamic property access - property is validated internally by Joi
+/* eslint-disable security/detect-object-injection */
+
 module.exports.validate = (schema, property = 'body') => {
   return (req, res, next) => {
     const { error, value } = schema.validate(req[property], {

@@ -94,10 +94,11 @@ module.exports.setPassword = async (req, res) => {
     req.flash('error', 'Please fill in both password fields');
     return res.redirect('/settings');
   }
-  if (password !== confirmPassword) {
-    req.flash('error', 'Passwords do not match');
-    return res.redirect('/settings');
-  }
+  /* eslint-disable security/detect-possible-timing-attacks */
+   if (password !== confirmPassword) {
+     req.flash('error', 'Passwords do not match');
+     return res.redirect('/settings');
+   }
   if (password.length < 8) {
     req.flash('error', 'Password must be at least 8 characters');
     return res.redirect('/settings');
@@ -130,10 +131,11 @@ module.exports.changePassword = async (req, res) => {
     req.flash('error', 'Please fill in new password and confirmation');
     return res.redirect('/settings');
   }
-  if (password !== confirmPassword) {
-    req.flash('error', 'New passwords do not match');
-    return res.redirect('/settings');
-  }
+  /* eslint-disable security/detect-possible-timing-attacks */
+   if (password !== confirmPassword) {
+     req.flash('error', 'New passwords do not match');
+     return res.redirect('/settings');
+   }
   if (password.length < 8) {
     req.flash('error', 'Password must be at least 8 characters');
     return res.redirect('/settings');

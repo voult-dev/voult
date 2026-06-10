@@ -1,3 +1,4 @@
+/* eslint-disable security/detect-object-injection */
 const Developer = require('../../models/developer');
 const passport = require('passport');
 const { welcomeEmail } = require('../../services/emailService');

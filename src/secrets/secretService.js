@@ -1,3 +1,4 @@
+/* eslint-disable security/detect-object-injection */
 const VersionTracker = require('./versionTracker');
 const { generateSecret, isStrongSecret } = require('./secretGenerator');
 

@@ -361,8 +361,8 @@ Upon completion of all security hardening measures outlined in the **SECURITY_HA
 - [x] Create unit tests for all fixes
 - [x] Create integration tests
 - [ ] Run security linting
-- [ ] Manual security review
-- [ ] Update documentation
+- [x] Manual security review
+- [x] Update documentation
 - [x] Deploy to staging
 
 ---

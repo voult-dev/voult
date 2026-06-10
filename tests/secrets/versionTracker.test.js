@@ -56,6 +56,7 @@ describe('VersionTracker', () => {
     test('should save tracker data to file', () => {
         tracker.registerSecret('SAVE_SECRET_TEST', 1);
         tracker.saveTracker();
+        // eslint-disable-next-line security/detect-non-literal-fs-filename
         expect(fs.existsSync(tracker.trackerPath)).toBe(true);
     });
 });

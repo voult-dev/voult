@@ -1,18 +1,12 @@
 const EndUser = require('../../models/endUser');
-const { signEndUserToken } = require('../../utils/jwt');
+const { signEndUserToken, signAccessToken, createRefreshToken } = require('../../utils/jwt');
 const { ApiError } = require('../../utils/apiError');
 const App = require('../../models/app');
-
-const crypto = require('crypto');
+const RefreshToken = require('../../models/refreshToken');
 
 // EMAILS
-const {verifyEndUsers, sendPasswordResetEmail} = require('../../services/emailService');
+const {verifyEndUsers} = require('../../services/emailService');
 const { accountLockedEmail } = require('../../services/emailOnLock');
-
-// TOKENS
-const RefreshToken = require('../../models/refreshToken');
-const { signAccessToken, signRefreshToken } = require('../../utils/jwt');
-const { createRefreshToken } = require('../../utils/refreshToken');
 
 // INPUT SANITIZATION
 const { sanitize } = require('../../middleware/inputSanitization');

@@ -6,13 +6,14 @@ It handles the hard parts of auth — user management, email verification, passw
 
 ---
 
-Live: https://www.voult.dev  
+Live: [https://www.voult.dev](https://www.voult.dev)  
 
 ---
 
-##  Features
+## Features
 
 ### Core Authentication.
+
 - User registration (email + password, or username + password)
 - Secure login & logout (email-based or username-based)
 - Magic link authentication (passwordless login)
@@ -25,11 +26,13 @@ Live: https://www.voult.dev
   - Disabled accounts
 
 ### OAuth Support.
+
 - OAuth middleware for API routes
 - Multi-provider configuration (in development)
 - Seamless provider integration
 
 ### Account Management.
+
 - Soft delete (disable account)
 - Re-enable disabled accounts
 - Token revocation via `tokenVersion`
@@ -37,6 +40,7 @@ Live: https://www.voult.dev
 - Username and email-based account lookup
 
 ### Developer-Focused.
+
 - API-first architecture
 - Clean MVC structure
 - Built for extensibility
@@ -47,7 +51,7 @@ Live: https://www.voult.dev
 
 ---
 
-##  Tech Stack.
+## Tech Stack.
 
 - **Backend**: Node.js, Express
 - **Auth**: JWT, OAuth middleware
@@ -55,11 +59,13 @@ Live: https://www.voult.dev
 - **Templating**: EJS (for emails & views)
 - **Security**: bcrypt, rate limiting, validation middleware, atomic transactions
 - **Frontend (Landing / Docs)**: HTML, CSS, JavaScript, React.js
+
 ## CSRF Token Handling for Clients
 
 This application uses `csurf` to protect all state-changing routes.
 
 ### Browser forms
+
 - HTML forms include a hidden field named `_csrf`.
 - The CSRF token is injected into EJS templates as `csrfToken`.
 - Example:
@@ -68,11 +74,13 @@ This application uses `csurf` to protect all state-changing routes.
   ```
 
 ### JavaScript clients / API calls
+
 - A client can fetch a fresh token from `GET /auth/csrf-token`.
 - The app exposes this endpoint for JS-based workflows.
 - Use the token in subsequent requests with the `X-CSRF-Token` header.
 
 Example fetch flow:
+
 ```javascript
 const response = await fetch('/auth/csrf-token', {
   method: 'GET',
@@ -92,9 +100,11 @@ const loginResponse = await fetch('/api/auth/login', {
 ```
 
 ### Notes
+
 - CSRF protection applies to web routes and API routes that mutate state.
 - API requests require either the `X-CSRF-Token` header or `_csrf` query/body token.
 - The server also uses session-based CSRF tokens, so `credentials: 'include'` is required for cross-origin-safe requests.
+
 ---
 
 ## 📂 Project Structure
@@ -116,9 +126,10 @@ voult/
 
 ---
 
-##  Latest Updates
+## Latest Updates
 
 **Recent Enhancements (May 2026):**
+
 - [x] Enhanced magic link functionality with atomic token claiming and redirect URI allowlisting (WIP)
 - [x] API rate limiting for magic link routes
 - [x] JWT middleware improvements for cleaner user data handling
@@ -128,5 +139,3 @@ voult/
 - [x] Javascript SDK
 
 ---
-
-This project is 4 months away from launch.

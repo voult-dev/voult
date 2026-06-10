@@ -117,10 +117,11 @@ module.exports.forgotPassword = async (req, res) => {
       const { password, confirmPassword } = req.body;
 
       // Check if passwords match
-      if(password !== confirmPassword){
-        req.flash('error', 'New Password and confirm password should be the same');
-        return res.redirect(`/reset-password/${req.params.token}`);
-      }
+/* eslint-disable security/detect-possible-timing-attacks */
+       if(password !== confirmPassword){
+         req.flash('error', 'New Password and confirm password should be the same');
+         return res.redirect(`/reset-password/${req.params.token}`);
+       }
 
       // Validate password strength
       if (!validatePassword(password)) {

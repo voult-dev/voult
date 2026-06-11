@@ -96,7 +96,7 @@ const corsOptions = {
   ]
 };
 
-app.use(cors(corsOptions));
+// app.use(cors(corsOptions));
 
 const swaggerUi = require('swagger-ui-express');
 const YAML = require('yamljs');

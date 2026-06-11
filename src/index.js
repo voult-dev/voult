@@ -208,9 +208,9 @@ app.use((err, req, res, next) => {
         }
       });
     }
-    // For web routes, flash and redirect
-    req.flash('error', 'Form session expired. Please try again.');
-    return res.redirect('/');
+    // For web routes, render error page
+    res.locals.error = ['Form session expired. Please try again.'];
+    return res.status(403).render('error/500', { title: 'Security Error' });
   }
 
   // API error handler

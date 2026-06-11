@@ -34,7 +34,7 @@ const sessionConfig = {
   cookie: {
     secure: isProduction,        
     httpOnly: true,
-    sameSite: isProduction ? 'strict' : 'lax', 
+    sameSite: isProduction ? 'lax' : 'lax', 
     path: '/',
     domain: undefined,        
     maxAge: isProduction

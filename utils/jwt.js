@@ -51,3 +51,19 @@ exports.signRefreshToken = () => {
     return crypto.randomBytes(64).toString('hex');
 };
 
+exports.signEndUserToken = (user, app) => {
+    return jwt.sign(
+      {
+        sub: user._id,
+        appId: app._id,
+        email: user.email,
+        username: user.username,
+        tokenVersion: user.tokenVersion,
+      },
+      JWT_SECRET,
+      {
+        expiresIn: JWT_EXPIRES_IN,
+        algorithm: 'HS256',
+      }
+    );
+};

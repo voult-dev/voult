@@ -3,6 +3,7 @@ const crypto = require('crypto');
 
 // Validate JWT secret on module load
 if (!process.env.ENDUSER_JWT_SECRET || process.env.ENDUSER_JWT_SECRET.length < 32) {
+    console.error('[JWT INIT ERROR] ENDUSER_JWT_SECRET is missing or too short (min 32 chars)');
     throw new Error('ENDUSER_JWT_SECRET must be set and at least 32 characters long');
 }
 
@@ -11,6 +12,7 @@ const JWT_EXPIRES_IN = process.env.NODE_ENV === 'production' ? '15m' : '7d';
 
 // Sign access token with proper configuration
 exports.signAccessToken = (user, app) => {
+    console.log('[JWT] signAccessToken called for user:', user?.email || user?._id);
     return jwt.sign(
         {
             sub: user._id,
@@ -36,6 +38,7 @@ exports.verifyAccessToken = (token) => {
             issuer: 'voult.dev'
         });
     } catch (err) {
+        console.error('[JWT] verifyAccessToken failed:', err.message);
         if (err.name === 'TokenExpiredError') {
             throw new Error('Token expired');
         }
@@ -52,6 +55,7 @@ exports.signRefreshToken = () => {
 };
 
 exports.signEndUserToken = (user, app) => {
+    console.log('[JWT] signEndUserToken called for user:', user?.email || user?._id);
     return jwt.sign(
       {
         sub: user._id,
@@ -67,3 +71,7 @@ exports.signEndUserToken = (user, app) => {
       }
     );
 };
+
+// Re-export createRefreshToken for convenience
+const { createRefreshToken: _createRefreshToken } = require('./refreshToken');
+exports.createRefreshToken = _createRefreshToken;

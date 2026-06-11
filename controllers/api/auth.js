@@ -19,125 +19,138 @@ const { PASSWORD_RULES_MESSAGE } = require('../../constants/passwordRules');
 // REGISTER
 // =======================
 module.exports.register = async (req, res) => {
-  const { email, password, fullName, username } = req.body;
-  
-  // Sanitize inputs
-  const sanitizedEmail = sanitize(typeof email === 'string' ? email.trim().toLowerCase() : '');
-  const sanitizedUsername = sanitize(typeof username === 'string' ? username.trim().toLowerCase() : '');
-  const sanitizedFullName = sanitize(fullName || '');
+  console.log('[AUTH] register() called - app:', req.appClient?.clientId);
+  try {
+    const { email, password, fullName, username } = req.body;
+    
+    // Sanitize inputs
+    const sanitizedEmail = sanitize(typeof email === 'string' ? email.trim().toLowerCase() : '');
+    const sanitizedUsername = sanitize(typeof username === 'string' ? username.trim().toLowerCase() : '');
+    const sanitizedFullName = sanitize(fullName || '');
 
-  const app = req.appClient;
+    const app = req.appClient;
 
-  if (!sanitizedEmail || !password) {
-    throw new ApiError(
-      400,
-      'VALIDATION_ERROR',
-      'Email and password are required'
-    );
-  }
+    if (!app) {
+      console.error('[AUTH] register() - ERROR: req.appClient is undefined');
+      throw new ApiError(401, 'INVALID_CLIENT', 'App client validation failed');
+    }
 
-  // Validate username format if provided
-  if (sanitizedUsername) {
-    const usernameRegex = /^[a-zA-Z0-9_]{3,30}$/;
-    if (!usernameRegex.test(sanitizedUsername)) {
+    if (!sanitizedEmail || !password) {
       throw new ApiError(
         400,
-        'INVALID_USERNAME',
-        'Username must be 3-30 characters, alphanumeric and underscores only'
+        'VALIDATION_ERROR',
+        'Email and password are required'
       );
     }
 
-    // Check if username is already taken
-    const existingUsernameUser = await EndUser.findOne({
+    // Validate username format if provided
+    if (sanitizedUsername) {
+      const usernameRegex = /^[a-zA-Z0-9_]{3,30}$/;
+      if (!usernameRegex.test(sanitizedUsername)) {
+        throw new ApiError(
+          400,
+          'INVALID_USERNAME',
+          'Username must be 3-30 characters, alphanumeric and underscores only'
+        );
+      }
+
+      // Check if username is already taken
+      const existingUsernameUser = await EndUser.findOne({
+        app: app._id,
+        username: sanitizedUsername,
+        deletedAt: null
+      });
+
+      if (existingUsernameUser) {
+        throw new ApiError(
+          409,
+          'USERNAME_TAKEN',
+          'Username is already taken'
+        );
+      }
+    }
+
+    const existingUser = await EndUser.findOne({
       app: app._id,
-      username: sanitizedUsername,
-      deletedAt: null
+      email: sanitizedEmail
     });
 
-    if (existingUsernameUser) {
+    if (existingUser) {
       throw new ApiError(
         409,
-        'USERNAME_TAKEN',
-        'Username is already taken'
+        'USER_EXISTS',
+        'User with that email already exists'
+      );
+    };
+
+    if (!validatePassword(password)) {
+      throw new ApiError(
+        400,
+        'WEAK_PASSWORD',
+        PASSWORD_RULES_MESSAGE
       );
     }
-  }
+    
 
-  const existingUser = await EndUser.findOne({
-    app: app._id,
-    email: sanitizedEmail
-  });
+    const user = new EndUser({
+      fullName: sanitizedFullName,
+      app: app._id,
+      email: sanitizedEmail,
+      username: sanitizedUsername || undefined
+    });
 
-  if (existingUser) {
-    throw new ApiError(
-      409,
-      'USER_EXISTS',
-      'User with that email already exists'
-    );
-  };
+    await user.setPassword(password);
 
-  if (!validatePassword(password)) {
-    throw new ApiError(
-      400,
-      'WEAK_PASSWORD',
-      PASSWORD_RULES_MESSAGE
-    );
-  }
-  
+    const appO = await App.findById(app._id);
 
-  const user = new EndUser({
-    fullName: sanitizedFullName,
-    app: app._id,
-    email: sanitizedEmail,
-    username: sanitizedUsername || undefined
-  });
+    const userPerApp = await EndUser.countDocuments({app : appO._id});
+    appO.usage.totalRegistrations = userPerApp;
 
-  await user.setPassword(password);
+    await appO.save();
 
-  const appO = await App.findById(app._id);
+    const verifyToken = await user.generateEmailVerificationToken();
 
-  const userPerApp = await EndUser.countDocuments({app : appO._id});
-  appO.usage.totalRegistrations = userPerApp;
-
-  await appO.save();
-
-  const verifyToken = await user.generateEmailVerificationToken();
-
-  const baseUrl = (process.env.BASE_URL || '').trim();
-  if (!baseUrl) {
-    throw new ApiError(500, 'CONFIG_ERROR', 'BASE_URL is not set. Set BASE_URL in .env (e.g. BASE_URL=https://www.voult.dev) with no spaces around =.');
-  }
-  const verifyUrl = `${baseUrl}/api/user/verify-email?token=${verifyToken}&appId=${app._id}`;
-
-  const token = signEndUserToken(user, app);
-
-  await user.save();
-
-  // Send verification email (non-blocking - don't fail registration if email fails)
-  verifyEndUsers(
-    user.email,
-    app.name,
-    verifyUrl,
-  ).catch(err => {
-    console.error('Failed to send verification email:', err.message);
-    // Registration still succeeds even if email fails
-  });
-
-  res.status(201).json({
-    message: 'User registered successfully',
-    token,
-    user: {
-      id: user._id,
-      email: user.email,
-      username: user.username
+    const baseUrl = (process.env.BASE_URL || '').trim();
+    if (!baseUrl) {
+      throw new ApiError(500, 'CONFIG_ERROR', 'BASE_URL is not set. Set BASE_URL in .env (e.g. BASE_URL=https://www.voult.dev) with no spaces around =.');
     }
-  });
+    const verifyUrl = `${baseUrl}/api/user/verify-email?token=${verifyToken}&appId=${app._id}`;
+
+    const token = signEndUserToken(user, app);
+
+    await user.save();
+
+    // Send verification email (non-blocking - don't fail registration if email fails)
+    verifyEndUsers(
+      user.email,
+      app.name,
+      verifyUrl,
+    ).catch(err => {
+      console.error('[AUTH] Failed to send verification email:', err.message);
+      // Registration still succeeds even if email fails
+    });
+
+    console.log('[AUTH] register() completed successfully for:', sanitizedEmail);
+    res.status(201).json({
+      message: 'User registered successfully',
+      token,
+      user: {
+        id: user._id,
+        email: user.email,
+        username: user.username
+      }
+    });
+  } catch (err) {
+    console.error('[AUTH] register() failed:', err.message);
+    throw err;
+  }
 };
 
 // =======================
 // USERNAME REGISTER
 // =======================
 module.exports.usernameRegister = async (req, res) => {
+  console.log('[AUTH] usernameRegister() called - app:', req.appClient?.clientId);
   const { username, password, fullName, email } = req.body;
   
   // Sanitize inputs

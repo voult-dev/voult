@@ -32,10 +32,10 @@ Additionally, `createRefreshToken` is also imported from the wrong module - it's
 ### Impact
 
 When any API endpoint attempts to register or login an end user:
-- `/api/auth/register` (line 112)
-- `/api/auth/username-register` (line 235)
-- `/api/auth/email-login` (line 341)
-- `/api/auth/username-login` (line 440)
+- `/api/auth/register`
+- `/api/auth/username-register`
+- `/api/auth/email-login`
+- `/api/auth/username-login`
 
 The code calls:
 
@@ -68,11 +68,8 @@ When the auth controller throws this `ReferenceError`, Express's global error ha
 Add the following function to `utils/jwt.js` (after the existing code):
 
 ```javascript
-// Add this function to utils/jwt.js
+const JWT_EXPIRES_IN = process.env.NODE_ENV === 'production' ? '15m' : '7d';
 
-/**
- * Sign a token for end user authentication
- */
 const signEndUserToken = (user, app) => {
   return jwt.sign(
     {
@@ -124,10 +121,44 @@ Check that the MongoDB connection string in `.env` is valid:
 After making the fix:
 
 1. Restart the server: `npm run dev` or `npm start`
-2. Check for startup errors in console
+2. Check for startup errors in console - look for `[DATABASE]`, `[SESSION]`, `[JWT INIT ERROR]` logs
 3. Test login form at `/login` with valid credentials
 4. Test register form at `/register` with valid data
-5. Check server logs for specific error messages if 500 persists
+5. Check server logs for specific error messages if 500 persists - look for `[API ERROR HANDLER]`, `[WEB ERROR HANDLER]`, `[AUTH]`, `[VALIDATE]`
+
+---
+
+## Error Logging Added to Codebase
+
+To help diagnose future issues, error logging has been added to the following locations:
+
+| File | Log Prefix | Purpose |
+|------|------------|---------|
+| `utils/jwt.js` | `[JWT]` | JWT initialization and token operations |
+| `controllers/api/auth.js` | `[AUTH]` | API authentication operations |
+| `controllers/web/auth.js` | `[WEB AUTH]` | Web authentication operations |
+| `controllers/web/user.js` | `[WEB USER]` | Web user operations (dashboard, password reset) |
+| `config/database.js` | `[DATABASE]` | MongoDB connection status |
+| `config/session.js` | `[SESSION]` | Session configuration |
+| `middleware/verifyClient.js` | `[VERIFY CLIENT]` | Client ID/secret validation |
+| `middleware/rateLimiters.js` | `[RATE LIMIT]` | Rate limit exceeded warnings |
+| `validators/validate.js` | `[VALIDATE]` | Input validation failures |
+| `src/index.js` | `[API ERROR HANDLER]`, `[WEB ERROR HANDLER]` | Global error logging with stack traces |
+
+---
+
+## What to Look For in Logs
+
+When errors occur, search for these prefixes in your console output:
+
+- **`[JWT INIT ERROR]`** - Missing or weak JWT secret
+- **`[DATABASE]`** - Database connection issues
+- **`[SESSION]`** - Session configuration problems
+- **`[VERIFY CLIENT]`** - Invalid client credentials
+- **`[AUTH]`** - Authentication failures in API routes
+- **`[WEB AUTH]`** - Authentication failures in web routes
+- **`[VALIDATE]`** - Form input validation errors
+- **`[API ERROR HANDLER]`** or **`[WEB ERROR HANDLER]`** - Final error output with full stack traces
 
 ---
 

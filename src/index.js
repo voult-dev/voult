@@ -185,7 +185,8 @@ const { sendError } = require('../utils/apiError');
 
 // eslint-disable-next-line no-unused-vars
 app.use('/api', (err, req, res, next) => {
-  console.error('API ERROR:', err);
+  console.error('[API ERROR HANDLER] Error on', req.originalUrl, ':', err?.message || err);
+  console.error('[API ERROR HANDLER] Stack:', err?.stack);
   return sendError(res, err);
 });
 
@@ -196,6 +197,11 @@ app.use((req, res, next) => {
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
   const status = err.statusCode || err.status || 500;
+  
+  console.error('[WEB ERROR HANDLER] Error on', req.originalUrl, ':');
+  console.error('[WEB ERROR HANDLER] Message:', err?.message || err);
+  console.error('[WEB ERROR HANDLER] Stack:', err?.stack);
+  console.error('[WEB ERROR HANDLER] Error code:', err?.code);
 
   // Handle CSRF errors specifically
   if (err.code === 'EBADCSRFTOKEN') {
@@ -231,7 +237,7 @@ app.use((err, req, res, next) => {
     return res.status(404).render('error/404', { title: 'Page Not Found' });
   }
   
-  res.status(status).render('error/500', { title: 'Internal Server Error' });
+  res.status(status).render('error/500', { title: 'Internal Server Error', errorMessage: err.message });
 });
   
 const PORT = process.env.PORT || 3000;

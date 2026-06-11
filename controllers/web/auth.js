@@ -136,12 +136,14 @@ module.exports.loginForm = async (req, res, next) => {
     await saveSession(req);
     res.render('auth/login', { title: 'Login Page' });
   } catch (err) {
+    console.error('[WEB AUTH] loginForm() error:', err.message);
     next(err);
   }
 };
 
 module.exports.login = async (req, res, next) => {
   try {
+    console.log('[WEB AUTH] login() - user:', req.user?.email);
     req.user.lastLoginAt = new Date();
     await req.user.save();
     await saveSession(req);
@@ -150,6 +152,7 @@ module.exports.login = async (req, res, next) => {
     const returnUrl = res.locals.returnTo || '/';
     res.redirect(returnUrl);
   } catch (err) {
+    console.error('[WEB AUTH] login() error:', err.message);
     next(err);
   }
 };
@@ -159,8 +162,11 @@ module.exports.registerForm = (req, res) => {
 };
 
 module.exports.register = async (req, res) => {
+  console.log('[WEB AUTH] register() called');
   try {
     const { email, name, password, username } = req.body;
+
+    console.log('[WEB AUTH] register() - email:', email, 'name:', name);
 
     if (!email || !name || !password) {
       req.flash('error', 'All fields are required');
@@ -185,11 +191,15 @@ module.exports.register = async (req, res) => {
     await welcomeEmail(developer.email, developer.name, verifyUrl);
 
     req.login(developer, (err) => {
-      if (err) throw err;
+      if (err) {
+        console.error('[WEB AUTH] register() - req.login error:', err);
+        throw err;
+      }
       req.flash('success', 'Account created successfully');
       res.redirect('/');
     });
   } catch (err) {
+    console.error('[WEB AUTH] register() - ERROR:', err.message);
     req.flash('error', err.message);
     res.redirect('/register');
   }

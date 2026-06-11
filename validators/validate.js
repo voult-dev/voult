@@ -12,13 +12,14 @@ module.exports.validate = (schema, property = 'body') => {
 
     if (error) {
       const message = error.details.map(d => d.message).join(', ');
+      console.error('[VALIDATE] Validation failed:', message, 'on path:', req.path);
 
       if (req.originalUrl.startsWith('/api')) {
         return next(
           new ApiError(400, 'VALIDATION_ERROR', message)
         );
       }
-
+      
       req.flash('error', message);
       return res.redirect('back');
     }

@@ -34,7 +34,7 @@ const sessionConfig = {
   cookie: {
     secure: isProduction,        
     httpOnly: true,
-    sameSite: isProduction ? 'lax' : 'lax', 
+    sameSite: isProduction ? 'strict' : 'lax', 
     path: '/',
     domain: undefined,        
     maxAge: isProduction
@@ -48,5 +48,7 @@ if ((!process.env.SECRET && !process.env.SESSION_SECRET) && isProduction) {
     'SECRET or SESSION_SECRET environment variable is required in production'
   );
 }
+
+console.log('[SESSION] Configured - secure:', sessionConfig.cookie.secure, 'sameSite:', sessionConfig.cookie.sameSite);
 
 module.exports = sessionConfig;

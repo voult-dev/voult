@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const { validatePassword } = require('../../validators/password');
 
 module.exports.dashboard = async (req, res) => {
+  console.log('[WEB USER] dashboard() - user:', req.user?.email);
   // Simple overview; detailed app management lives on /apps
   const appsCount = await App.countDocuments({
     owner: req.user._id,
@@ -19,6 +20,7 @@ module.exports.dashboard = async (req, res) => {
 };
 
 module.exports.appsPage = async (req, res) => {
+  console.log('[WEB USER] appsPage() - user:', req.user?.email);
   const apps = await App.find({
     owner: req.user._id,
     deletedAt: { $exists: false },
@@ -32,6 +34,7 @@ module.exports.appsPage = async (req, res) => {
 };
 
 module.exports.profilePage = async (req, res) => {
+  console.log('[WEB USER] profilePage() - user:', req.user?.email);
   res.render('user/profile', {
     title: 'Profile | voult.dev',
     user: req.user,
@@ -53,44 +56,46 @@ function hashToken(token) {
 
 // Enter Email Form.
 module.exports.forgotPasswordForm = async(req, res)=>{
+    console.log('[WEB USER] forgotPasswordForm()');
     res.render('forgottenPassword/forgot-password', {title : 'Forgot Password'})
 };
 
 // Send Email to user email
 module.exports.forgotPassword = async (req, res) => {
+    console.log('[WEB USER] forgotPassword() - email:', req.body?.email);
     const { email } = req.body;
-  
+    
     const user = await User.findOne({ email });
-  
+    
     // Prevent email enumeration
     if (!user) {
       req.flash('success', 'If an account exists, a reset link has been sent.');
       return res.redirect('/forgot-password');
     }
-  
+    
     // Generate raw token for the email link
     const rawToken = generateResetToken();
     
     // Hash the token before storing in database
     const hashedToken = hashToken(rawToken);
-  
+
     user.resetPasswordToken = hashedToken;
     user.resetPasswordExpires = Date.now() + 1000 * 60 * 30; // 30 minutes
     await user.save();
-  
+    
     // Send raw token in the email link
     const resetUrl = `${process.env.BASE_URL}/reset-password/${rawToken}`;
 
     const {forgottenPasswordEmail} = require('../../services/passwordResetEmail');
 
     await forgottenPasswordEmail(user.name, email, resetUrl);
-  
+    
     req.flash('success', `A reset link has been sent to your email. Did not see it? <a href="/forgot-password">Resend email</a>`);
     res.redirect('/login');
-  };
+};
 
-  
-  module.exports.resetPasswordForm = async (req, res) => {
+module.exports.resetPasswordForm = async (req, res) => {
+    console.log('[WEB USER] resetPasswordForm() - token provided');
     // Hash the incoming token to compare with stored hashed token
     const hashedToken = hashToken(req.params.token);
     
@@ -110,16 +115,17 @@ module.exports.forgotPassword = async (req, res) => {
     });
   };
 
-  module.exports.resetPassword = async(req, res)=>{
+module.exports.resetPassword = async(req, res)=>{
+    console.log('[WEB USER] resetPassword() - token:', req.params.token);
     try {
       const { password, confirmPassword } = req.body;
 
       // Check if passwords match
 /* eslint-disable security/detect-possible-timing-attacks */
-       if(password !== confirmPassword){
-         req.flash('error', 'New Password and confirm password should be the same');
-         return res.redirect(`/reset-password/${req.params.token}`);
-       }
+     if(password !== confirmPassword){
+       req.flash('error', 'New Password and confirm password should be the same');
+       return res.redirect(`/reset-password/${req.params.token}`);
+     }
 
       // Validate password strength
       if (!validatePassword(password)) {
@@ -154,8 +160,8 @@ module.exports.forgotPassword = async (req, res) => {
       res.redirect('/login');
       
     } catch (error) {
-      console.error('Password reset error:', error);
+      console.error('[WEB USER] resetPassword() ERROR:', error.message);
       req.flash('error', 'An error occurred while resetting your password. Please try again.');
       res.redirect(`/reset-password/${req.params.token}`);
     }
-  };
+};

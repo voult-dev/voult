@@ -6,7 +6,10 @@ module.exports.verifyClient = async (req, res, next) => {
   const clientId = req.headers['x-client-id'];
   const clientSecret = req.headers['x-client-secret'];
 
+  console.log('[VERIFY CLIENT] Request from clientId:', clientId);
+
   if (!clientId) {
+    console.error('[VERIFY CLIENT] ERROR: Client ID is missing');
     throw new ApiError(401, 'CLIENT_ID_REQUIRED', 'Client ID is required');
   }
 
@@ -16,6 +19,7 @@ module.exports.verifyClient = async (req, res, next) => {
   }).select('+clientSecretHash');
 
   if (!app || !app.isActive) {
+    console.error('[VERIFY CLIENT] ERROR: App not found or inactive for clientId:', clientId);
     throw new ApiError(401, 'INVALID_CLIENT', 'Invalid or inactive app');
   }
   
@@ -25,9 +29,10 @@ module.exports.verifyClient = async (req, res, next) => {
     req.path.includes('/google/register') ||
     req.path.includes('/linkedin/login') ||
     req.path.includes('/linkedin/register');
-
+  
   if (!isOAuthRoute) {
     if (!clientSecret) {
+      console.error('[VERIFY CLIENT] ERROR: Client secret is missing for route:', req.path);
       throw new ApiError(
         401,
         'CLIENT_SECRET_REQUIRED',
@@ -37,11 +42,13 @@ module.exports.verifyClient = async (req, res, next) => {
 
     const isValid = await app.verifyClientSecret(clientSecret);
     if (!isValid) {
+      console.error('[VERIFY CLIENT] ERROR: Invalid client secret for clientId:', clientId);
       throw new ApiError(401, 'INVALID_CLIENT_SECRET', 'Invalid client secret');
     }
   }
 
   req.appClient = app;
+  console.log('[VERIFY CLIENT] SUCCESS: Verified app:', app.clientId);
   next();
 };
 

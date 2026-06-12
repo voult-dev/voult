@@ -23,7 +23,7 @@ async function getCsrfToken() {
   }
 
   try {
-    const response = await fetch('/auth/csrf-token', {
+    const response = await fetch('/csrf-token', {
       method: 'GET',
       credentials: 'include'
     });

@@ -96,7 +96,7 @@ const corsOptions = {
   ]
 };
 
-// app.use(cors(corsOptions));
+app.use(cors(corsOptions));
 
 const swaggerUi = require('swagger-ui-express');
 const YAML = require('yamljs');
@@ -111,7 +111,7 @@ app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
   `,
 }));
 
-const ExpressError = require('../utils/ExpressError');
+// const ExpressError = require('../utils/ExpressError');
 
 const routes = require('../routes/index');
 
@@ -190,9 +190,9 @@ app.use('/api', (err, req, res, next) => {
   return sendError(res, err);
 });
 
-app.use((req, res, next) => {
-  next(new ExpressError('Page Not Found', 404));
-});
+// app.use((req, res, next) => {
+//   next(new ExpressError('Page Not Found', 404));
+// });
 
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {

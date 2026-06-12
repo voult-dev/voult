@@ -69,15 +69,13 @@ const cors = require('cors');
 
 const corsOptions = {
   origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, curl, same-origin requests)
     if (!origin) return callback(null, true);
     
-    const allowedOrigins = [
-      'https://www.voult.dev',
-      'https://voult.dev',
-      'https://voult.onrender.com',
-      'http://localhost:3000',
-      'http://127.0.0.1:3000'
-    ];
+    const corsOrigin = process.env.CORS_ORIGIN;
+    const allowedOrigins = corsOrigin 
+      ? corsOrigin.split(',').map(o => o.trim()).filter(Boolean)
+      : ['http://localhost:3000', 'http://127.0.0.1:3000'];
     
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
@@ -96,7 +94,8 @@ const corsOptions = {
   ]
 };
 
-app.use(cors(corsOptions));
+// app.use(cors(corsOptions));
+app.use('/api', cors(corsOptions));
 
 const swaggerUi = require('swagger-ui-express');
 const YAML = require('yamljs');

@@ -133,21 +133,11 @@ app.use((req, res, next) => {
     res.locals.csrfToken = '';
     return next();
   }
-  // Only generate token if session exists
-  if (!req.session || !req.session.id) {
-    res.locals.csrfToken = '';
-    return next();
-  }
+  // Generate CSRF token for all web routes (forms need it)
   try {
     res.locals.csrfToken = req.csrfToken();
   } catch {
-    // Force session regeneration on CSRF secret loss
-    req.session.regenerate(() => {
-      try { res.locals.csrfToken = req.csrfToken(); }
-      catch { res.locals.csrfToken = ''; }
-      next();
-    });
-    return;
+    res.locals.csrfToken = '';
   }
   next();
 });

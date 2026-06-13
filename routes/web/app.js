@@ -14,7 +14,7 @@ router.use(isLoggedIn);
 
 router.get('/new', controller.newForm);
 
-router.post('/', validate(appSchemas.createAppSchema), csrfProtection,  catchAsync(controller.newApp));
+router.post('/', validate(appSchemas.createAppSchema), catchAsync(controller.newApp));
 
 router.post('/:id/toggle', csrfProtection, catchAsync(controller.toggleApp));
 

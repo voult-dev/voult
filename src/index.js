@@ -109,8 +109,6 @@ app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
   `,
 }));
 
-// const ExpressError = require('../utils/ExpressError');
-
 const routes = require('../routes/index');
 
 require('../config/database')();

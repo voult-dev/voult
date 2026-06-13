@@ -133,6 +133,96 @@ const { csrfProtection } = require('../../middleware/csrfProtection');
 
 This is the safest and simplest fix for this codebase because CSRF is intentionally centralized in `src/index.js`.
 
+## Step-by-Step Fix Guideline
+
+Follow these steps to fix the app creation CSRF bug without weakening CSRF protection.
+
+### Step 1: Confirm the current failure
+
+1. Start the app.
+2. Open `http://localhost:3000/app/new`.
+3. Submit the "Create App" form.
+4. Confirm that the server logs show `invalid csrf token` and `EBADCSRFTOKEN` for `POST /app`.
+
+This confirms the bug before changing code.
+
+### Step 2: Open the app route file
+
+Open:
+
+```text
+routes/web/app.js
+```
+
+Find this route:
+
+```javascript
+router.post('/', validate(appSchemas.createAppSchema), csrfProtection,  catchAsync(controller.newApp));
+```
+
+This is the duplicate CSRF middleware causing the bug.
+
+### Step 3: Remove only the route-level CSRF middleware
+
+Change the route from:
+
+```javascript
+router.post('/', validate(appSchemas.createAppSchema), csrfProtection,  catchAsync(controller.newApp));
+```
+
+to:
+
+```javascript
+router.post('/', validate(appSchemas.createAppSchema), catchAsync(controller.newApp));
+```
+
+Do not remove the hidden `_csrf` input from the form.
+Do not remove the global CSRF middleware from `src/index.js`.
+
+### Step 4: Check whether the import is still needed
+
+At the top of `routes/web/app.js`, check this import:
+
+```javascript
+const { csrfProtection } = require('../../middleware/csrfProtection');
+```
+
+If no remaining route in `routes/web/app.js` uses `csrfProtection`, remove the import.
+
+If other routes in the same file still use `csrfProtection`, keep the import for those routes.
+
+### Step 5: Search for the same duplicate pattern
+
+Search the codebase for routes where validation runs before route-level CSRF:
+
+```text
+validate(...), csrfProtection
+```
+
+If the codebase keeps global CSRF in `src/index.js:129`, this pattern can cause the same failure on other POST routes. Prefer removing the duplicate route-level `csrfProtection` on those routes too.
+
+### Step 6: Restart the app
+
+Stop and restart the server so the route changes are loaded.
+
+### Step 7: Re-test app creation
+
+1. Open `http://localhost:3000/app/new`.
+2. Fill in the app name.
+3. Submit the form.
+4. Confirm that the request completes without `EBADCSRFTOKEN`.
+5. Confirm that the app is created and the created app page renders.
+
+### Step 8: Verify CSRF protection is still enabled
+
+CSRF protection is still enabled because `src/index.js:129` keeps the global middleware:
+
+```javascript
+app.use(csrfProtection);
+```
+
+A request to `POST /app` without `_csrf` should still be rejected with a 403 CSRF error.
+
 ## Alternative Fixes
 
 If the team wants route-level CSRF middleware instead of global middleware, remove the global `app.use(csrfProtection)` from `src/index.js:129` and ensure every state-changing web and API route has its own CSRF middleware. This is riskier because missing route-level CSRF protection would be easy to introduce.

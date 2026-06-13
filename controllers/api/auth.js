@@ -1,8 +1,12 @@
 const EndUser = require('../../models/endUser');
+const {safeQueryBuilder} = require('../../middleware/queryValidation');
+
 const { signEndUserToken, signAccessToken, createRefreshToken } = require('../../utils/jwt');
 const { ApiError } = require('../../utils/apiError');
 const App = require('../../models/app');
 const RefreshToken = require('../../models/refreshToken');
+
+const userBuilder = new safeQueryBuilder(EndUser);
 
 // EMAILS
 const {verifyEndUsers} = require('../../services/emailService');

@@ -1,13 +1,17 @@
 const User = require('../../models/developer');
 const App = require('../../models/app');
+const { SafeQueryBuilder } = require('../../middleware/queryValidation');
 
 const crypto = require('crypto');
 const { validatePassword } = require('../../validators/password');
 
+const appBuilder = new SafeQueryBuilder(App);
+const developerBuilder = new SafeQueryBuilder(User);
+
 module.exports.dashboard = async (req, res) => {
   console.log('[WEB USER] dashboard() - user:', req.user?.email);
   // Simple overview; detailed app management lives on /apps
-  const appsCount = await App.countDocuments({
+  const appsCount = await appBuilder.countDocuments({
     owner: req.user._id,
     deletedAt: { $exists: false },
   });
@@ -21,7 +25,7 @@ module.exports.dashboard = async (req, res) => {
 
 module.exports.appsPage = async (req, res) => {
   console.log('[WEB USER] appsPage() - user:', req.user?.email);
-  const apps = await App.find({
+  const apps = await appBuilder.find({
     owner: req.user._id,
     deletedAt: { $exists: false },
   }).sort({ createdAt: -1 });
@@ -65,7 +69,7 @@ module.exports.forgotPassword = async (req, res) => {
     console.log('[WEB USER] forgotPassword() - email:', req.body?.email);
     const { email } = req.body;
     
-    const user = await User.findOne({ email });
+    const user = await developerBuilder.findOne({ email });
     
     // Prevent email enumeration
     if (!user) {
@@ -99,7 +103,7 @@ module.exports.resetPasswordForm = async (req, res) => {
     // Hash the incoming token to compare with stored hashed token
     const hashedToken = hashToken(req.params.token);
     
-    const user = await User.findOne({
+    const user = await developerBuilder.findOne({
       resetPasswordToken: hashedToken,
       resetPasswordExpires: { $gt: Date.now() },
     });
@@ -137,7 +141,7 @@ module.exports.resetPassword = async(req, res)=>{
       const hashedToken = hashToken(req.params.token);
 
       // Find user with valid token
-      const user = await User.findOne({
+      const user = await developerBuilder.findOne({
         resetPasswordToken: hashedToken,
         resetPasswordExpires: { $gt: Date.now() },
       });

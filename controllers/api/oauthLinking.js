@@ -1,14 +1,18 @@
 const OAuthAccount = require('../../models/OAuthAccount');
+const { SafeQueryBuilder } = require('../../middleware/queryValidation');
 const bcrypt = require('bcrypt');
 const generateProviderAuthUrl = require('../../services/oauth/generateProviderAuthUrl')
 
 const App = require('../../models/app');
 
+const appBuilder = new SafeQueryBuilder(App);
+const oAuthAccountBuilder = new SafeQueryBuilder(OAuthAccount);
+
 exports.startLinking = async (req, res) => {
   const { provider } = req.params;
   const user = req.endUser;
 
-  const app = await App.findById(user.app);
+  const app = await appBuilder.findById(user.app);
 
   if (!app || !app.isActive) {
     return res.status(404).json({ error: 'APP_NOT_ACTIVE' });
@@ -35,7 +39,7 @@ exports.startLinking = async (req, res) => {
 
 // 🔹 Get Linked Providers
 exports.getLinkedProviders = async (req, res) => {
-  const accounts = await OAuthAccount.find({
+  const accounts = await oAuthAccountBuilder.find({
     userId: req.endUser._id
   }).select('provider createdAt');
 
@@ -50,7 +54,7 @@ exports.unlinkProvider = async (req, res) => {
   const { provider } = req.params;
   const user = req.endUser;
 
-  const oauthCount = await OAuthAccount.countDocuments({
+  const oauthCount = await oAuthAccountBuilder.countDocuments({
     userId: user._id
   });
 
@@ -63,7 +67,7 @@ exports.unlinkProvider = async (req, res) => {
   }
 
   // Delete the OAuth account
-  await OAuthAccount.deleteOne({
+  await oAuthAccountBuilder.deleteOne({
     userId: user._id,
     provider
   });

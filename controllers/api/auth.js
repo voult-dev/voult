@@ -1,12 +1,14 @@
 const EndUser = require('../../models/endUser');
-const {safeQueryBuilder} = require('../../middleware/queryValidation');
+const { SafeQueryBuilder } = require('../../middleware/queryValidation');
 
 const { signEndUserToken, signAccessToken, createRefreshToken } = require('../../utils/jwt');
 const { ApiError } = require('../../utils/apiError');
 const App = require('../../models/app');
 const RefreshToken = require('../../models/refreshToken');
 
-const userBuilder = new safeQueryBuilder(EndUser);
+const endUserBuilder = new SafeQueryBuilder(EndUser);
+const appBuilder = new SafeQueryBuilder(App);
+const refreshTokenBuilder = new SafeQueryBuilder(RefreshToken);
 
 // EMAILS
 const {verifyEndUsers} = require('../../services/emailService');
@@ -59,7 +61,7 @@ module.exports.register = async (req, res) => {
       }
 
       // Check if username is already taken
-      const existingUsernameUser = await EndUser.findOne({
+      const existingUsernameUser = await endUserBuilder.findOne({
         app: app._id,
         username: sanitizedUsername,
         deletedAt: null
@@ -74,7 +76,7 @@ module.exports.register = async (req, res) => {
       }
     }
 
-    const existingUser = await EndUser.findOne({
+    const existingUser = await endUserBuilder.findOne({
       app: app._id,
       email: sanitizedEmail
     });
@@ -105,9 +107,9 @@ module.exports.register = async (req, res) => {
 
     await user.setPassword(password);
 
-    const appO = await App.findById(app._id);
+    const appO = await appBuilder.findById(app._id);
 
-    const userPerApp = await EndUser.countDocuments({app : appO._id});
+    const userPerApp = await endUserBuilder.countDocuments({app : appO._id});
     appO.usage.totalRegistrations = userPerApp;
 
     await appO.save();
@@ -184,7 +186,7 @@ module.exports.usernameRegister = async (req, res) => {
   }
 
   // Check if username is already taken
-  const existingUsernameUser = await EndUser.findOne({
+  const existingUsernameUser = await endUserBuilder.findOne({
     app: app._id,
     username: sanitizedUsername,
     deletedAt: null
@@ -200,7 +202,7 @@ module.exports.usernameRegister = async (req, res) => {
 
   // Check if email is already taken (if provided)
   if (sanitizedEmail) {
-    const existingEmailUser = await EndUser.findOne({
+    const existingEmailUser = await endUserBuilder.findOne({
       app: app._id,
       email: sanitizedEmail,
       deletedAt: null
@@ -234,9 +236,9 @@ module.exports.usernameRegister = async (req, res) => {
 
   await user.setPassword(password);
 
-  const appO = await App.findById(app._id);
+  const appO = await appBuilder.findById(app._id);
 
-  const userPerApp = await EndUser.countDocuments({ app: appO._id });
+  const userPerApp = await endUserBuilder.countDocuments({ app: appO._id });
   appO.usage.totalRegistrations = userPerApp;
 
   await appO.save();
@@ -290,7 +292,7 @@ module.exports.emailLogin = async (req, res) => {
     throw new ApiError(400, 'VALIDATION_ERROR', 'Email and password are required');
   }
 
-  const user = await EndUser.findOne({
+  const user = await endUserBuilder.findOne({
     app: app._id,
     email: normalizedEmail,
     deletedAt: null
@@ -350,7 +352,7 @@ module.exports.emailLogin = async (req, res) => {
 
   user.lastLoginAt = new Date();
 
-  const appO = await App.findById(app._id);
+  const appO = await appBuilder.findById(app._id);
   appO.usage.totalLogins += 1;
   await appO.save();
 
@@ -388,7 +390,7 @@ module.exports.usernameLogin = async (req, res) => {
     throw new ApiError(400, 'VALIDATION_ERROR', 'Username and password are required');
   }
   
-  const user = await EndUser.findOne({
+  const user = await endUserBuilder.findOne({
     app: app._id,
     username: normalizedUsername,
     deletedAt: null
@@ -449,7 +451,7 @@ module.exports.usernameLogin = async (req, res) => {
   
   user.lastLoginAt = new Date();
 
-  const appO = await App.findById(app._id);
+  const appO = await appBuilder.findById(app._id);
   appO.usage.totalLogins += 1;
   await appO.save();
 
@@ -488,7 +490,7 @@ module.exports.logout = async (req, res) => {
   }
   
   // Revoke ALL refresh tokens for this user + app
-  await RefreshToken.updateMany(
+  await refreshTokenBuilder.updateMany(
     {
       endUser: req.endUser._id,
       app: req.appClient._id,

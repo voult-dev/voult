@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const {Schema} = mongoose;
 const crypto = require('crypto');
+const { validateMongoQuery, validateMongoUpdate } = require('../middleware/queryValidation');
 
 const magicLinkTokenSchema = new Schema({
   email: {
@@ -53,18 +54,24 @@ magicLinkTokenSchema.statics.claimValidToken = async function(rawToken) {
   const now = new Date();
 
   // findOneAndUpdate is atomic: the first caller wins
+  const filter = {
+    tokenHash,
+    used: false,
+    expiresAt: { $gt: now }
+  };
+  const update = {
+    $set: {
+      used: true,
+      usedAt: now
+    }
+  };
+
+  validateMongoQuery(filter);
+  validateMongoUpdate(update);
+
   const tokenDoc = await this.findOneAndUpdate(
-    {
-      tokenHash,
-      used: false,
-      expiresAt: { $gt: now }
-    },
-    {
-      $set: {
-        used: true,
-        usedAt: now
-      }
-    },
+    filter,
+    update,
     {
       new: true
     }

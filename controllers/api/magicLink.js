@@ -13,9 +13,13 @@ const { magicLinkEmail } = require('../../services/magicLinkEmail');
 const MagicLinkToken = require('../../models/MagicLinkToken');
 const EndUser = require('../../models/endUser');
 const App = require('../../models/app');
+const { SafeQueryBuilder } = require('../../middleware/queryValidation');
 const { createTokens } = require('../../utils/createTokens');
 const crypto = require('crypto');
 const { ApiError } = require('../../utils/apiError');
+
+const appBuilder = new SafeQueryBuilder(App);
+const endUserBuilder = new SafeQueryBuilder(EndUser);
 
 /**
  * Send Magic Link
@@ -52,7 +56,7 @@ module.exports.sendLink = async (req, res) => {
   const normalizedEmail = email.toLowerCase().trim();
 
   // Find the app
-  const app = await App.findOne({ clientId, deletedAt: { $exists: false } });
+  const app = await appBuilder.findOne({ clientId, deletedAt: { $exists: false } });
   if (!app || !app.isActive) {
     throw new ApiError(404, 'APP_NOT_FOUND', 'App not found or inactive');
   }
@@ -117,7 +121,7 @@ module.exports.validateToken = async (req, res) => {
   }
 
   // Find end user for this app + email
-  const user = await EndUser.findOne({
+  const user = await endUserBuilder.findOne({
     email: tokenDoc.email,
     app: tokenDoc.app,
     deletedAt: null

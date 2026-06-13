@@ -1,4 +1,5 @@
 const EndUser = require('../../models/endUser');
+const { SafeQueryBuilder } = require('../../middleware/queryValidation');
 const App = require('../../models/app');
 const { ApiError } = require('../../utils/apiError');
 const { signAccessToken } = require('../../utils/jwt');
@@ -8,6 +9,9 @@ const {
   getLinkedInProfile
 } = require('../../utils/linkedinOAuth');
 const { welcomeOAuthUser } = require('../../services/emailService');
+
+const endUserBuilder = new SafeQueryBuilder(EndUser);
+const appBuilder = new SafeQueryBuilder(App);
 
 module.exports.linkedinRegister = async (req, res) => {
   const { code } = req.body;
@@ -37,7 +41,7 @@ module.exports.linkedinRegister = async (req, res) => {
   const { linkedinId, email, fullName } =
     await getLinkedInProfile(accessToken);
 
-  const existingUser = await EndUser.findOne({
+  const existingUser = await endUserBuilder.findOne({
     app: app._id,
     email,
     deletedAt: null
@@ -62,7 +66,7 @@ module.exports.linkedinRegister = async (req, res) => {
     lastLoginAt: new Date()
   });
 
-  await App.updateOne(
+  await appBuilder.updateOne(
     { _id: app._id },
     { $inc: { 'usage.totalRegistrations': 1 } }
   );
@@ -108,7 +112,7 @@ module.exports.linkedinLogin = async (req, res) => {
     const { linkedinId, email } =
       await getLinkedInProfile(accessToken);
   
-    const user = await EndUser.findOne({
+    const user = await endUserBuilder.findOne({
       app: app._id,
       email,
       deletedAt: null

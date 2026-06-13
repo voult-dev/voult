@@ -1,8 +1,11 @@
 const RefreshToken = require('../../models/refreshToken');
+const { SafeQueryBuilder } = require('../../middleware/queryValidation');
 const {ApiError} = require('../../utils/apiError');
 
 const { createRefreshToken } = require('../../utils/refreshToken');
 const { signAccessToken } = require('../../utils/jwt');
+
+const refreshTokenBuilder = new SafeQueryBuilder(RefreshToken);
 
 // =======================
 // LIST SESSIONS
@@ -12,7 +15,7 @@ module.exports.listSessions = async (req, res) => {
       throw new ApiError(401, 'UNAUTHORIZED', 'Authentication required');
     };
   
-    const sessions = await RefreshToken.find({
+    const sessions = await refreshTokenBuilder.find({
       endUser: req.endUser._id,
       app: req.endUser.app,
       revokedAt: null,
@@ -40,7 +43,7 @@ module.exports.listSessions = async (req, res) => {
   module.exports.revokeSession = async (req, res) => {
     const { sessionId } = req.params;
   
-    const session = await RefreshToken.findOne({
+    const session = await refreshTokenBuilder.findOne({
       _id: sessionId,
       endUser: req.endUser._id,
       app: req.endUser.app,
@@ -71,7 +74,7 @@ module.exports.listSessions = async (req, res) => {
 
 //   const tokenHash = RefreshToken.hashToken(refreshToken);
 
-//   const storedToken = await RefreshToken.findOne({
+//   const storedToken = await refreshTokenBuilder.findOne({
 //     tokenHash,
 //   }).populate('endUser');
 
@@ -83,7 +86,7 @@ module.exports.listSessions = async (req, res) => {
 //   // 🚨 REUSE DETECTION
 //   if (storedToken.revokedAt) {
 //     // Someone reused an already-rotated token
-//     await RefreshToken.updateMany(
+//     await refreshTokenBuilder.updateMany(
 //       {
 //         endUser: storedToken.endUser._id,
 //         app: storedToken.app,
@@ -144,7 +147,7 @@ module.exports.refresh = async (req, res) => {
 
   const tokenHash = RefreshToken.hashToken(refreshToken);
 
-  const storedToken = await RefreshToken.findOne({ tokenHash }).populate('endUser');
+  const storedToken = await refreshTokenBuilder.findOne({ tokenHash }).populate('endUser');
 
   if (!storedToken) {
     throw new ApiError(401, 'INVALID_REFRESH_TOKEN', 'Invalid refresh token');
@@ -152,7 +155,7 @@ module.exports.refresh = async (req, res) => {
 
   // REUSE DETECTION
   if (storedToken.revokedAt) {
-    await RefreshToken.updateMany(
+    await refreshTokenBuilder.updateMany(
       { endUser: storedToken.endUser._id, app: storedToken.app, revokedAt: null },
       { revokedAt: new Date() }
     );

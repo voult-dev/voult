@@ -1,8 +1,11 @@
 const OAuthAccount = require('../../models/OAuthAccount');
+const { SafeQueryBuilder } = require('../../middleware/queryValidation');
+
+const oAuthAccountBuilder = new SafeQueryBuilder(OAuthAccount);
 
 exports.getLinkedProviders = async (req, res) => {
   try {
-    const accounts = await OAuthAccount.find({
+    const accounts = await oAuthAccountBuilder.find({
       user: req.endUser._id,
       app: req.endUser.app,
       deletedAt: null
@@ -33,7 +36,7 @@ exports.unlinkProvider = async (req, res) => {
     const user = req.endUser;
 
     // Check if user has password or other OAuth accounts
-    const oauthCount = await OAuthAccount.countDocuments({
+    const oauthCount = await oAuthAccountBuilder.countDocuments({
       user: user._id,
       app: user.app,
       deletedAt: null
@@ -48,7 +51,7 @@ exports.unlinkProvider = async (req, res) => {
     }
 
     // Soft delete the OAuth account
-    await OAuthAccount.findOneAndUpdate(
+    await oAuthAccountBuilder.findOneAndUpdate(
       {
         user: user._id,
         app: user.app,

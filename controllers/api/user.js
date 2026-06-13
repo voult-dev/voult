@@ -1,4 +1,5 @@
 const EndUser = require('../../models/endUser');
+const { SafeQueryBuilder } = require('../../middleware/queryValidation');
 const { ApiError } = require('../../utils/apiError');
 
 const crypto = require('crypto');
@@ -10,6 +11,8 @@ const { sendPasswordResetEmail } = require('../../services/emailService');
 // PASSWORDS RULES
 const { validatePassword } = require('../../validators/password');
 const { PASSWORD_RULES_MESSAGE } = require('../../constants/passwordRules');
+
+const endUserBuilder = new SafeQueryBuilder(EndUser);
 
 // verify Email.
 module.exports.verifyEmail = async (req, res) => {
@@ -29,7 +32,7 @@ module.exports.verifyEmail = async (req, res) => {
       .update(token)
       .digest('hex');
   
-    const user = await EndUser.findOne({
+    const user = await endUserBuilder.findOne({
       app: appId,
       isEmailVerified : false,
       emailVerificationToken : hashedToken
@@ -67,7 +70,7 @@ module.exports.verifyEmail = async (req, res) => {
       );
     }
   
-    const user = await EndUser.findOne({
+    const user = await endUserBuilder.findOne({
       app: app._id,
       email,
       isEmailVerified: true
@@ -121,7 +124,7 @@ module.exports.verifyEmail = async (req, res) => {
       .update(token)
       .digest('hex');
   
-    const user = await EndUser.findOne({
+    const user = await endUserBuilder.findOne({
       app: appId,
       resetPasswordToken: hashedToken,
       resetPasswordExpires: { $gt: Date.now() }

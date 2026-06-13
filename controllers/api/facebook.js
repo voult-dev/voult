@@ -1,10 +1,14 @@
 const EndUser = require('../../models/endUser');
+const { SafeQueryBuilder } = require('../../middleware/queryValidation');
 const App = require('../../models/app');
 const { ApiError } = require('../../utils/apiError');
 const { signAccessToken } = require('../../utils/jwt');
 const { createRefreshToken } = require('../../utils/refreshToken');
 const { getFacebookProfile } = require('../../utils/facebookOAuth');
 const { welcomeOAuthUser } = require('../../services/emailService');
+
+const endUserBuilder = new SafeQueryBuilder(EndUser);
+const appBuilder = new SafeQueryBuilder(App);
 
 module.exports.facebookRegister = async (req, res) => {
   const { accessToken } = req.body;
@@ -26,8 +30,8 @@ module.exports.facebookRegister = async (req, res) => {
 
   // Look up by email if present, otherwise by facebookId (accounts without email)
   const existingUser = email
-    ? await EndUser.findOne({ app: app._id, email, deletedAt: null })
-    : await EndUser.findOne({ app: app._id, facebookId, deletedAt: null });
+    ? await endUserBuilder.findOne({ app: app._id, email, deletedAt: null })
+    : await endUserBuilder.findOne({ app: app._id, facebookId, deletedAt: null });
 
   if (existingUser) {
     if (existingUser.facebookId && existingUser.facebookId === facebookId) {
@@ -70,7 +74,7 @@ module.exports.facebookRegister = async (req, res) => {
     lastLoginAt: new Date()
   });
 
-  await App.updateOne(
+  await appBuilder.updateOne(
     { _id: app._id },
     { $inc: { 'usage.totalRegistrations': 1 } }
   );
@@ -118,8 +122,8 @@ module.exports.facebookLogin = async (req, res) => {
   
     // Find by email if present, otherwise by facebookId (accounts without email)
     const user = email
-      ? await EndUser.findOne({ app: app._id, email, deletedAt: null })
-      : await EndUser.findOne({ app: app._id, facebookId, deletedAt: null });
+      ? await endUserBuilder.findOne({ app: app._id, email, deletedAt: null })
+      : await endUserBuilder.findOne({ app: app._id, facebookId, deletedAt: null });
   
     if (!user) {
       throw new ApiError(

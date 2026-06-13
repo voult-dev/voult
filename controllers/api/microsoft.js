@@ -1,4 +1,5 @@
 const EndUser = require('../../models/endUser');
+const { SafeQueryBuilder } = require('../../middleware/queryValidation');
 const App = require('../../models/app');
 const { ApiError } = require('../../utils/apiError');
 const { signAccessToken } = require('../../utils/jwt');
@@ -8,6 +9,9 @@ const {
   verifyMicrosoftIdToken
 } = require('../../utils/microsoftOAuth');
 const { welcomeOAuthUser } = require('../../services/emailService');
+
+const endUserBuilder = new SafeQueryBuilder(EndUser);
+const appBuilder = new SafeQueryBuilder(App);
 
 module.exports.microsoftRegister = async (req, res) => {
   const { code } = req.body;
@@ -48,7 +52,7 @@ module.exports.microsoftRegister = async (req, res) => {
     );
   }
 
-  const existingUser = await EndUser.findOne({
+  const existingUser = await endUserBuilder.findOne({
     app: app._id,
     email,
     deletedAt: null
@@ -69,7 +73,7 @@ module.exports.microsoftRegister = async (req, res) => {
     lastLoginAt: new Date()
   });
 
-  await App.updateOne(
+  await appBuilder.updateOne(
     { _id: app._id },
     { $inc: { 'usage.totalRegistrations': 1 } }
   );
@@ -115,7 +119,7 @@ module.exports.microsoftLogin = async (req, res) => {
         app.microsoftOAuth.clientId
       );
   
-    const user = await EndUser.findOne({
+    const user = await endUserBuilder.findOne({
       app: app._id,
       email,
       deletedAt: null

@@ -1,7 +1,11 @@
 const crypto = require('crypto');
 const User = require('../../models/developer');
 const App = require('../../models/app');
+const { SafeQueryBuilder } = require('../../middleware/queryValidation');
 const { sendEmailChangeVerification } = require('../../services/emailService');
+
+const userBuilder = new SafeQueryBuilder(User);
+const appBuilder = new SafeQueryBuilder(App);
 
 // Developer Settings Page.
 module.exports.settingsPage = (req, res) => {
@@ -12,7 +16,7 @@ module.exports.settingsPage = (req, res) => {
 // Update profile (name, username only).
 module.exports.updateSettings = async (req, res) => {
   const { name, username } = req.body;
-  const user = await User.findById(req.user._id);
+  const user = await userBuilder.findById(req.user._id);
   if (!user) {
     req.flash('error', 'User not found');
     return res.redirect('/settings');
@@ -32,7 +36,7 @@ module.exports.requestEmailChange = async (req, res) => {
     req.flash('error', 'Email is required');
     return res.redirect('/settings');
   }
-  const user = await User.findById(req.user._id);
+  const user = await userBuilder.findById(req.user._id);
   if (!user) {
     req.flash('error', 'User not found');
     return res.redirect('/settings');
@@ -41,7 +45,7 @@ module.exports.requestEmailChange = async (req, res) => {
     req.flash('error', 'New email is the same as current email');
     return res.redirect('/settings');
   }
-  const existing = await User.findOne({ email: newEmailNorm });
+  const existing = await userBuilder.findOne({ email: newEmailNorm });
   if (existing) {
     req.flash('error', 'That email is already in use');
     return res.redirect('/settings');
@@ -61,7 +65,7 @@ module.exports.requestEmailChange = async (req, res) => {
 module.exports.verifyNewEmail = async (req, res) => {
   const rawToken = req.params.token;
   const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
-  const user = await User.findOne({
+  const user = await userBuilder.findOne({
     pendingEmailToken: hashedToken,
     pendingEmailTokenExpires: { $gt: Date.now() },
   });
@@ -81,7 +85,7 @@ module.exports.verifyNewEmail = async (req, res) => {
 // Set password (OAuth users who have not set a password yet).
 module.exports.setPassword = async (req, res) => {
   const { password, confirmPassword } = req.body;
-  const user = await User.findById(req.user._id);
+  const user = await userBuilder.findById(req.user._id);
   if (!user) {
     req.flash('error', 'User not found');
     return res.redirect('/settings');
@@ -113,7 +117,7 @@ module.exports.setPassword = async (req, res) => {
 // Change password (requires current password).
 module.exports.changePassword = async (req, res) => {
   const { currentPassword, password, confirmPassword } = req.body;
-  const user = await User.findById(req.user._id);
+  const user = await userBuilder.findById(req.user._id);
   if (!user) {
     req.flash('error', 'User not found');
     return res.redirect('/settings');
@@ -154,7 +158,7 @@ module.exports.unlinkProvider = async (req, res) => {
     return res.redirect('/settings');
   }
 
-  const user = await User.findById(req.user._id);
+  const user = await userBuilder.findById(req.user._id);
   if (!user) {
     req.flash('error', 'User not found');
     return res.redirect('/settings');
@@ -188,7 +192,7 @@ module.exports.unlinkProvider = async (req, res) => {
 };
 
 module.exports.deleteAccountForm = async (req, res) => {
-  const user = await User.findById(req.user._id);
+  const user = await userBuilder.findById(req.user._id);
   if (!user) {
     req.flash('error', 'User not found');
     return res.redirect('/dashboard');
@@ -203,7 +207,7 @@ module.exports.deleteAccountForm = async (req, res) => {
 module.exports.deleteAccount = async (req, res, next) => {
   try {
     const { password, confirmDelete } = req.body;
-    const user = await User.findById(req.user._id);
+    const user = await userBuilder.findById(req.user._id);
 
     if (!user) {
       req.flash('error', 'User does not exist');
@@ -225,8 +229,8 @@ module.exports.deleteAccount = async (req, res, next) => {
 
     req.logout(async (err) => {
       if (err) return next(err);
-      await App.deleteMany({ owner: user._id });
-      await User.findByIdAndDelete(user._id);
+      await appBuilder.deleteMany({ owner: user._id });
+      await userBuilder.findByIdAndDelete(user._id);
       req.flash('success', 'Account deleted successfully');
       res.redirect('/');
     });

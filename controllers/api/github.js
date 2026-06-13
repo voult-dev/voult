@@ -1,4 +1,5 @@
 const EndUser = require('../../models/endUser');
+const { SafeQueryBuilder } = require('../../middleware/queryValidation');
 const App = require('../../models/app');
 const { ApiError } = require('../../utils/apiError');
 const {
@@ -7,6 +8,9 @@ const {
 } = require('../../utils/githubOAuth');
 const { signAccessToken } = require('../../utils/jwt');
 const { createRefreshToken } = require('../../utils/refreshToken');
+
+const endUserBuilder = new SafeQueryBuilder(EndUser);
+const appBuilder = new SafeQueryBuilder(App);
 
 // Email Services
 const {welcomeOAuthUser} = require('../../services/emailService');
@@ -44,7 +48,7 @@ module.exports.githubRegister = async (req, res) => {
     throw new ApiError(400, 'EMAIL_REQUIRED', 'GitHub email not available');
   }
 
-  const existingUser = await EndUser.findOne({
+  const existingUser = await endUserBuilder.findOne({
     app: app._id,
     email,
     deletedAt: null
@@ -65,7 +69,7 @@ module.exports.githubRegister = async (req, res) => {
     lastLoginAt: new Date()
   });
 
-  await App.updateOne(
+  await appBuilder.updateOne(
     { _id: app._id },
     { $inc: { 'usage.totalRegistrations': 1 } }
   );
@@ -134,7 +138,7 @@ module.exports.githubLogin = async (req, res) => {
     throw new ApiError(400, 'EMAIL_REQUIRED', 'GitHub email not available');
   }
 
-  const user = await EndUser.findOne({
+  const user = await endUserBuilder.findOne({
     app: app._id,
     email,
     deletedAt: null

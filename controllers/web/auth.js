@@ -1,5 +1,6 @@
 /* eslint-disable security/detect-object-injection */
 const Developer = require('../../models/developer');
+const { SafeQueryBuilder } = require('../../middleware/queryValidation');
 const passport = require('passport');
 const { welcomeEmail } = require('../../services/emailService');
 const crypto = require('crypto');
@@ -76,6 +77,8 @@ function oauthErrorMessage(strategy, err) {
 
   return 'Sign-in failed. Please try again.';
 }
+
+const developerBuilder = new SafeQueryBuilder(Developer);
 
 function oauthCallback(strategy, req, res, next) {
   const path = OAUTH_PATHS[strategy]?.login;
@@ -234,7 +237,7 @@ module.exports.logout = (req, res, next) => {
 };
 
 module.exports.verifyAccount = async (req, res) => {
-  const developer = await Developer.findOne({
+  const developer = await developerBuilder.findOne({
     verifyToken: req.params.token,
     verifyTokenExpires: { $gt: Date.now() },
   });
@@ -288,7 +291,7 @@ module.exports.googleLinkCallback = (req, res, next) => {
         return res.redirect('/settings');
       }
 
-      const target = await Developer.findById(targetId);
+      const target = await developerBuilder.findById(targetId);
       if (!target) {
         req.flash('error', 'Account not found.');
         return res.redirect('/settings');
@@ -299,7 +302,7 @@ module.exports.googleLinkCallback = (req, res, next) => {
       await target.save();
 
       if (user._id.toString() !== targetId) {
-        await Developer.findByIdAndUpdate(user._id, { $unset: { googleId: 1 } });
+        await developerBuilder.findByIdAndUpdate(user._id, { $unset: { googleId: 1 } });
         req.login(target, (loginErr) => {
           if (loginErr) return next(loginErr);
           req.flash('success', 'Google account linked.');
@@ -345,7 +348,7 @@ module.exports.githubLinkCallback = (req, res, next) => {
         return res.redirect('/settings');
       }
 
-      const target = await Developer.findById(targetId);
+      const target = await developerBuilder.findById(targetId);
       if (!target) {
         req.flash('error', 'Account not found.');
         return res.redirect('/settings');
@@ -356,7 +359,7 @@ module.exports.githubLinkCallback = (req, res, next) => {
       await target.save();
 
       if (user._id.toString() !== targetId) {
-        await Developer.findByIdAndUpdate(user._id, { $unset: { githubId: 1 } });
+        await developerBuilder.findByIdAndUpdate(user._id, { $unset: { githubId: 1 } });
         req.login(target, (loginErr) => {
           if (loginErr) return next(loginErr);
           req.flash('success', 'GitHub account linked.');

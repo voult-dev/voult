@@ -1,4 +1,5 @@
 const EndUser = require('../../models/endUser');
+const { SafeQueryBuilder } = require('../../middleware/queryValidation');
 const { ApiError } = require('../../utils/apiError');
 const { signAccessToken } = require('../../utils/jwt');
 const { createRefreshToken } = require('../../utils/refreshToken');
@@ -7,6 +8,9 @@ const fetch = require('node-fetch'); // or global fetch (Node 18+)
 
 const { welcomeOAuthUser } = require('../../services/emailService');
 const App = require('../../models/app');
+
+const endUserBuilder = new SafeQueryBuilder(EndUser);
+const appBuilder = new SafeQueryBuilder(App);
 
 async function getGooglePayload({ idToken, accessToken, clientId }) {
   // -------- 1. Try ID TOKEN (preferred) --------
@@ -112,7 +116,7 @@ module.exports.googleLogin = async (req, res) => {
   }
 
   /* -------- Find existing user -------- */
-  const user = await EndUser.findOne({
+  const user = await endUserBuilder.findOne({
     app: app._id,
     email,
     deletedAt: null
@@ -211,7 +215,7 @@ module.exports.googleRegister = async (req, res) => {
     null;
 
   /* -------- Prevent duplicates -------- */
-  const existingUser = await EndUser.findOne({
+  const existingUser = await endUserBuilder.findOne({
     app: app._id,
     email,
     deletedAt: null
@@ -237,7 +241,7 @@ module.exports.googleRegister = async (req, res) => {
     lastLoginAt: new Date()
   });
 
-  await App.updateOne(
+  await appBuilder.updateOne(
     { _id: app._id },
     { $inc: { 'usage.totalRegistrations': 1 } }
   );

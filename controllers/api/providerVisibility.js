@@ -1,11 +1,14 @@
 const App = require('../../models/app');
+const { SafeQueryBuilder } = require('../../middleware/queryValidation');
 const {ApiError} = require('../../utils/apiError')
+
+const appBuilder = new SafeQueryBuilder(App);
 
 module.exports.getProviderVisibility = async (req, res) => {
   try {
     const { clientId } = req.params;
     
-    const app = await App.findOne({clientId});
+    const app = await appBuilder.findOne({clientId});
     
     if (!app || !app.isActive) {
       throw new ApiError(

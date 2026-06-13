@@ -2,7 +2,13 @@ const App = require('../../models/app');
 const OAuthAccount = require('../../models/OAuthAccount');
 const User = require('../../models/endUser');
 const RefreshToken = require('../../models/refreshToken');
+const { SafeQueryBuilder } = require('../../middleware/queryValidation');
 const { ApiError } = require('../../utils/apiError');
+
+const appBuilder = new SafeQueryBuilder(App);
+const oAuthAccountBuilder = new SafeQueryBuilder(OAuthAccount);
+const userBuilder = new SafeQueryBuilder(User);
+const refreshTokenBuilder = new SafeQueryBuilder(RefreshToken);
 
 module.exports.newForm = (req, res)=>{
     res.render('app/new', {title : 'New App'});
@@ -36,7 +42,7 @@ module.exports.rotateClientSecret = async (req, res) => {
   const { id } = req.params;
 
   // Find app and ensure it belongs to the logged-in developer
-  const app = await App.findOne({
+  const app = await appBuilder.findOne({
     _id: id,
     owner: req.user._id,
     deletedAt: { $exists: false }
@@ -62,14 +68,14 @@ module.exports.rotateClientSecret = async (req, res) => {
 
 
 module.exports.manage = async(req, res)=>{
-    const app = await App.findById(req.params.id);
+    const app = await appBuilder.findById(req.params.id);
     res.render('app/manage', {app, title : `Manage ${app.name}`})
 };
 
 module.exports.deleteApp = async (req, res) => {
     const { id } = req.params;
   
-    const app = await App.findById(id);
+    const app = await appBuilder.findById(id);
   
     if (!app) {
       req.flash('error', 'App not found');
@@ -92,7 +98,7 @@ module.exports.deleteApp = async (req, res) => {
   };
 
 module.exports.editForm = async(req, res)=>{
-    const app = await App.findById(req.params.id);
+    const app = await appBuilder.findById(req.params.id);
     res.render('app/edit', {app, title : `Edit ${app.name}`})
 };
 
@@ -100,7 +106,7 @@ module.exports.updateApp = async (req, res) => {
     const { id } = req.params;
     const { name, description, callbackUrl, isActive } = req.body;
   
-    const app = await App.findById(id);
+    const app = await appBuilder.findById(id);
   
     if (!app) {
       req.flash('error', 'App not found');
@@ -128,7 +134,7 @@ module.exports.updateApp = async (req, res) => {
   module.exports.toggleApp = async (req, res) => {
     const { id } = req.params;
   
-    const app = await App.findById(id);
+    const app = await appBuilder.findById(id);
   
     if (!app) {
       req.flash('error', 'App not found');
@@ -152,7 +158,7 @@ module.exports.updateApp = async (req, res) => {
 };
 
 module.exports.getGoogleOAuth = async (req, res) => {
-  const app = await App.findOne({
+  const app = await appBuilder.findOne({
     _id: req.params.id,
     owner: req.user._id,
   });
@@ -173,7 +179,7 @@ module.exports.saveGoogleOAuth = async (req, res) => {
   const { id } = req.params;
   const { clientId, clientSecret, redirectUri } = req.body;
 
-  const app = await App.findOne({
+  const app = await appBuilder.findOne({
     _id: id,
     owner: req.user._id,
   });
@@ -189,9 +195,10 @@ module.exports.saveGoogleOAuth = async (req, res) => {
   }
 
   // Check if any users are already linked to Google OAuth
-  const linkedUsers = await OAuthAccount.countDocuments({
+  const userIds = (await userBuilder.find({ app: id }).select('_id').lean()).map(user => user._id);
+  const linkedUsers = await oAuthAccountBuilder.countDocuments({
     provider: 'google',
-    user: { $in: await User.find({ app: id }).select('_id') }
+    user: { $in: userIds }
   });
 
   if (linkedUsers > 0) {
@@ -213,7 +220,7 @@ module.exports.saveGoogleOAuth = async (req, res) => {
 };
 
 module.exports.getGithubOAuth = async (req, res)=>{
-  const app = await App.findOne({
+  const app = await appBuilder.findOne({
     _id: req.params.id,
     owner: req.user._id,
   });
@@ -233,7 +240,7 @@ module.exports.saveGithubOAuth = async (req, res) => {
   const { id } = req.params;
   const { clientId, clientSecret, redirectUri } = req.body;
 
-  const app = await App.findById(id);
+  const app = await appBuilder.findById(id);
 
   if (!app) {
     throw new ApiError(404, 'APP_NOT_FOUND', 'Application not found');
@@ -277,14 +284,15 @@ module.exports.updateGoogleOAuth = async (req, res) => {
   const { id } = req.params;
   const { clientId, clientSecret, redirectUri, enabled } = req.body;
 
-  const app = await App.findById(id);
+  const app = await appBuilder.findById(id);
   if (!app) throw new ApiError(404, 'APP_NOT_FOUND', 'App not found');
 
   // Check if disabling Google OAuth while users have linked accounts
   if (enabled === 'false' && app.googleOAuth?.enabled) {
-    const linkedUsers = await OAuthAccount.countDocuments({
+    const userIds = (await userBuilder.find({ app: id }).select('_id').lean()).map(user => user._id);
+    const linkedUsers = await oAuthAccountBuilder.countDocuments({
       provider: 'google',
-      user: { $in: await User.find({ app: id }).select('_id') }
+      user: { $in: userIds }
     });
 
     if (linkedUsers > 0) {
@@ -311,7 +319,7 @@ module.exports.updateGoogleOAuth = async (req, res) => {
     redirectUri &&
     previousRedirectUri !== redirectUri
   ) {
-    await RefreshToken.updateMany(
+    await refreshTokenBuilder.updateMany(
       { app: app._id, provider: 'google' },
       { revokedAt: new Date() }
     );
@@ -327,7 +335,7 @@ module.exports.updateGithubOAuth = async (req, res) => {
   const { id } = req.params;
   const { clientId, clientSecret, redirectUri, enabled } = req.body;
 
-  const app = await App.findById(id);
+  const app = await appBuilder.findById(id);
   if (!app) throw new ApiError(404, 'APP_NOT_FOUND', 'App not found');
 
   const previousRedirectUri = app.githubOAuth?.redirectUri;
@@ -348,7 +356,7 @@ module.exports.updateGithubOAuth = async (req, res) => {
     redirectUri &&
     previousRedirectUri !== redirectUri
   ) {
-    await RefreshToken.updateMany(
+    await refreshTokenBuilder.updateMany(
       { app: app._id, provider: 'github' },
       { revokedAt: new Date() }
     );
@@ -359,7 +367,7 @@ module.exports.updateGithubOAuth = async (req, res) => {
 };
 
 module.exports.getFacebookOAuth = async (req, res) => {
-  const app = await App.findOne({
+  const app = await appBuilder.findOne({
     _id: req.params.id,
     owner: req.user._id,
   });
@@ -381,7 +389,7 @@ module.exports.saveFacebookOAuth = async (req, res, next) => {
     const { enabled, appId: fbAppId, appSecret, redirectUri } = req.body;
 
     // Always fetch with secret explicitly selected
-    const app = await App.findById(id).select('+facebookOAuth.appSecret');
+    const app = await appBuilder.findById(id).select('+facebookOAuth.appSecret');
 
     if (!app) {
       return res.status(404).json({ error: 'App not found' });
@@ -426,7 +434,7 @@ module.exports.updateFacebookOAuth = async (req, res) => {
   const { appId, appSecret, redirectUri, enabled } = req.body;
 
   /* ---------- Fetch app WITH secret ---------- */
-  const app = await App.findById(id).select('+facebookOAuth.appSecret');
+  const app = await appBuilder.findById(id).select('+facebookOAuth.appSecret');
 
   if (!app) {
     throw new ApiError(404, 'APP_NOT_FOUND', 'Application not found');
@@ -476,7 +484,7 @@ module.exports.updateFacebookOAuth = async (req, res) => {
 };
 
 module.exports.getLinkeldinOAuth = async (req, res) => {
-  const app = await App.findOne({
+  const app = await appBuilder.findOne({
     _id: req.params.id,
     owner: req.user._id,
   });
@@ -496,7 +504,7 @@ module.exports.saveLinkedinOAuth = async (req, res) => {
   const { id } = req.params;
   const { clientId, clientSecret, redirectUri } = req.body;
 
-  const app = await App.findOne({
+  const app = await appBuilder.findOne({
     _id: id,
     owner: req.user._id,
   });
@@ -528,7 +536,7 @@ module.exports.updateLinkedinOAuth = async (req, res) => {
   const { id } = req.params;
   const { clientId, clientSecret, redirectUri, enabled } = req.body;
 
-  const app = await App.findById(id).select('+linkedinOAuth.clientSecret');
+  const app = await appBuilder.findById(id).select('+linkedinOAuth.clientSecret');
   if (!app) throw new ApiError(404, 'APP_NOT_FOUND', 'App not found');
 
   if (!app.owner.equals(req.user._id)) {
@@ -555,7 +563,7 @@ module.exports.updateLinkedinOAuth = async (req, res) => {
 
 
 module.exports.getAppleOAuth = async (req, res) => {
-  const app = await App.findOne({
+  const app = await appBuilder.findOne({
     _id: req.params.id,
     owner: req.user._id,
   });
@@ -575,7 +583,7 @@ module.exports.saveAppleOAuth = async (req, res) => {
   const { id } = req.params;
   const { teamId, clientId, keyId, privateKey, redirectUri } = req.body;
 
-  const app = await App.findOne({
+  const app = await appBuilder.findOne({
     _id: id,
     owner: req.user._id,
   });
@@ -609,7 +617,7 @@ module.exports.updateAppleOAuth = async (req, res) => {
   const { id } = req.params;
   const { teamId, clientId, keyId, privateKey, redirectUri, enabled } = req.body;
 
-  const app = await App.findById(id).select('+appleOAuth.privateKey');
+  const app = await appBuilder.findById(id).select('+appleOAuth.privateKey');
   if (!app) throw new ApiError(404, 'APP_NOT_FOUND', 'App not found');
 
   if (!app.owner.equals(req.user._id)) {
@@ -638,7 +646,7 @@ module.exports.updateAppleOAuth = async (req, res) => {
 };
 
 module.exports.getMicrosoftOAuth = async (req, res) => {
-  const app = await App.findOne({
+  const app = await appBuilder.findOne({
     _id: req.params.id,
     owner: req.user._id,
   });
@@ -658,7 +666,7 @@ module.exports.saveMicrosoftOAuth = async (req, res) => {
   const { id } = req.params;
   const { clientId, clientSecret, tenantId, redirectUri } = req.body;
 
-  const app = await App.findOne({
+  const app = await appBuilder.findOne({
     _id: id,
     owner: req.user._id,
   });
@@ -691,7 +699,7 @@ module.exports.updateMicrosoftOAuth = async (req, res) => {
   const { id } = req.params;
   const { clientId, clientSecret, tenantId, redirectUri, enabled } = req.body;
 
-  const app = await App.findById(id).select('+microsoftOAuth.clientSecret');
+  const app = await appBuilder.findById(id).select('+microsoftOAuth.clientSecret');
   if (!app) throw new ApiError(404, 'APP_NOT_FOUND', 'App not found');
 
   if (!app.owner.equals(req.user._id)) {

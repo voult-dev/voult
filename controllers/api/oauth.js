@@ -1,12 +1,17 @@
 // controllers/oauthController.js
 
 const OAuthAccount = require('../../models/OAuthAccount');
+const { SafeQueryBuilder } = require('../../middleware/queryValidation');
 const User = require('../../models/endUser');
 const App = require('../../models/app');
 const {createToken} = require('../../utils/createTokens');
 const exchangeCodeForToken = require('../../utils/exchangeCodeForToken');
 const getProviderProfile = require('../../utils/getProviderProfile');
 const generateProviderAuthUrl = require('../../services/oauth/generateProviderAuthUrl');
+
+const oAuthAccountBuilder = new SafeQueryBuilder(OAuthAccount);
+const userBuilder = new SafeQueryBuilder(User);
+const appBuilder = new SafeQueryBuilder(App);
 
 function decodeState(state) {
   return JSON.parse(
@@ -115,7 +120,7 @@ exports.handleCallback = async (req, res) => {
     const { intent, userId, appId } = decodedState;
 
     // 1️⃣ Fetch app with secrets and check provider enablement
-    const app = await App.findById(appId).select('+googleOAuth.clientSecret +githubOAuth.clientSecret +facebookOAuth.appSecret +linkedinOAuth.clientSecret +appleOAuth.privateKey +microsoftOAuth.clientSecret');
+    const app = await appBuilder.findById(appId).select('+googleOAuth.clientSecret +githubOAuth.clientSecret +facebookOAuth.appSecret +linkedinOAuth.clientSecret +appleOAuth.privateKey +microsoftOAuth.clientSecret');
     
     if (!app || !app.isActive) {
       return res.status(404).json({ error: 'APP_NOT_ACTIVE' });
@@ -140,7 +145,7 @@ exports.handleCallback = async (req, res) => {
     }
 
     // Check if this provider account already exists
-    const existingOAuth = await OAuthAccount.findOne({
+    const existingOAuth = await oAuthAccountBuilder.findOne({
       provider,
       providerUserId
     });
@@ -160,7 +165,7 @@ exports.handleCallback = async (req, res) => {
         });
       }
 
-      await OAuthAccount.findOneAndUpdate(
+      await oAuthAccountBuilder.findOneAndUpdate(
         { user: userId, provider, app: app._id },
         {
           providerUserId,
@@ -180,7 +185,7 @@ exports.handleCallback = async (req, res) => {
       );
 
       // Track linked provider on the end user document as well
-      await User.findByIdAndUpdate(
+      await userBuilder.findByIdAndUpdate(
         userId,
         { $addToSet: { linkedProviders: provider } }
       );
@@ -197,7 +202,7 @@ exports.handleCallback = async (req, res) => {
         return res.status(404).json({ error: 'ACCOUNT_NOT_REGISTERED' });
       }
 
-      const user = await User.findById(existingOAuth.user);
+      const user = await userBuilder.findById(existingOAuth.user);
 
       const token = createToken(user);
 
@@ -221,7 +226,7 @@ exports.handleCallback = async (req, res) => {
         });
       }
 
-      let user = await User.findOne({ email });
+      let user = await userBuilder.findOne({ email });
 
       if (!user) {
         user = await User.create({

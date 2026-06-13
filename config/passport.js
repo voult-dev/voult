@@ -2,6 +2,9 @@ const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const GitHubStrategy = require('passport-github').Strategy;
 const Developer = require('../models/developer');
+const { SafeQueryBuilder } = require('../middleware/queryValidation');
+
+const developerBuilder = new SafeQueryBuilder(Developer);
 
 /**
  * OAuth redirect URIs must be identical on:
@@ -36,12 +39,12 @@ passport.use(new GoogleStrategy({
       return done(null, false, { message: 'Google did not provide an email address.' });
     }
 
-    let developer = await Developer.findOne({ googleId });
+    let developer = await developerBuilder.findOne({ googleId });
     if (developer) {
       return done(null, developer);
     }
 
-    developer = await Developer.findOne({ email });
+    developer = await developerBuilder.findOne({ email });
     if (developer) {
       developer.googleId = googleId;
       if (!developer.avatar) developer.avatar = avatar;
@@ -63,7 +66,7 @@ passport.use(new GoogleStrategy({
       if (createErr.code !== 11000) {
         return done(createErr);
       }
-      developer = await Developer.findOne({ $or: [{ email }, { googleId }] });
+      developer = await developerBuilder.findOne({ $or: [{ email }, { googleId }] });
       if (!developer) {
         return done(createErr);
       }
@@ -96,11 +99,11 @@ passport.use(new GitHubStrategy({
       profile.username ||
       (email ? email.split('@')[0] : 'Developer');
 
-    let developer = await Developer.findOne({ githubId });
+    let developer = await developerBuilder.findOne({ githubId });
     if (developer) return done(null, developer);
 
     if (email) {
-      developer = await Developer.findOne({ email });
+    developer = await developerBuilder.findOne({ email });
       if (developer) {
         developer.githubId = githubId;
         if (!developer.avatar) developer.avatar = avatar;
@@ -127,7 +130,7 @@ passport.use(new GitHubStrategy({
       if (createErr.code !== 11000) {
         return done(createErr);
       }
-      developer = await Developer.findOne({ $or: [{ email }, { githubId }] });
+      developer = await developerBuilder.findOne({ $or: [{ email }, { githubId }] });
       if (!developer) {
         return done(createErr);
       }
@@ -152,7 +155,7 @@ passport.serializeUser((developer, done) => {
 passport.deserializeUser(async (id, done) => {
   try {
     if (!id) return done(null, false);
-    const developer = await Developer.findById(id);
+    const developer = await developerBuilder.findById(id);
     done(null, developer);
   } catch (err) {
     done(err);

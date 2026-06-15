@@ -1,6 +1,7 @@
 const EndUser = require('../../models/endUser');
 const { SafeQueryBuilder } = require('../../middleware/queryValidation');
 const { ApiError } = require('../../utils/apiError');
+const { constantTimeCompare } = require('../../utils/constantTimeComparison');
 
 const crypto = require('crypto');
 
@@ -78,14 +79,14 @@ module.exports.verifyEmail = async (req, res) => {
   
     if (!user) {
       return res.status(200).json({
-        message: 'Email Not Found'
+        message: 'If that email exists, a reset link has been sent'
       });
     }
     
     const resetToken = user.generatePasswordResetToken();
     await user.save();
   
-    const resetUrl = `${process.env.BASE_URL}/api/auth/reset-password?token=${resetToken}&appId=${app._id}`;
+    const resetUrl = `${process.env.BASE_URL}/api/user/reset-password?token=${resetToken}&appId=${app._id}`;
   
     await sendPasswordResetEmail(
       user.email,
@@ -128,17 +129,22 @@ module.exports.verifyEmail = async (req, res) => {
       app: appId,
       resetPasswordToken: hashedToken,
       resetPasswordExpires: { $gt: Date.now() }
-    }).select('+passwordHash');
-  
-    if (!user) {
-      throw new ApiError(
-        400,
-        'INVALID_TOKEN',
-        'Reset token is invalid or expired'
-      );
+    }).select('+resetPasswordToken');
+
+    const tokenMatches = user && constantTimeCompare(user.resetPasswordToken, hashedToken);
+
+    const delay = Math.random() * 100;
+    await new Promise(resolve => setTimeout(resolve, delay));
+
+    if (!user || !tokenMatches) {
+      return res.status(400).json({
+        error: 'INVALID_RESET_LINK',
+        message: 'Password reset link is invalid or expired'
+      });
     }
-  
+
     await user.setPassword(password);
+
   
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
@@ -147,7 +153,7 @@ module.exports.verifyEmail = async (req, res) => {
     await user.save();
   
     res.status(200).json({
-      message: 'Password reset successful'
+      message: 'Password reset successfully'
     });
   };
   

@@ -168,6 +168,9 @@ A centralized authentication-as-a-service platform for developers.
 
 ---
 
+## Later TODO
+- [ ] Let developers be able to choose the password pattern they want implemented in their app.
+
 ## 🎯 Definition of Done
 
 - Secure, scalable auth platform

@@ -52,7 +52,7 @@ const flash = require('connect-flash');
 
 const passport = require('../config/passport');
 
-const { csrfProtection } = require('../middleware/csrfProtection');
+// const { csrfProtection } = require('../middleware/csrfProtection');
 const securityHeaders = require('../middleware/securityHeaders');
 
 const sessionConfig = require('../config/session');
@@ -124,7 +124,7 @@ app.use(express.urlencoded({
 
 app.use(securityHeaders);
 
-app.use(csrfProtection);
+// app.use(csrfProtection);
 
 app.use((req, res, next) => {
   if (req.path.startsWith('/api')) {

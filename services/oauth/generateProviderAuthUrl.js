@@ -1,5 +1,8 @@
 const querystring = require('querystring');
 const App = require('../../models/app');
+const { SafeQueryBuilder } = require('../../middleware/queryValidation');
+
+const appBuilder = new SafeQueryBuilder(App);
 
 function encodeState(stateObj) {
   return Buffer
@@ -10,7 +13,7 @@ function encodeState(stateObj) {
 module.exports = async function generateProviderAuthUrl(provider, state, appId) {
 
   const encodedState = encodeState(state);
-  const app = await App.findById(appId);
+  const app = await appBuilder.findById(appId);
 
   switch (provider) {
 

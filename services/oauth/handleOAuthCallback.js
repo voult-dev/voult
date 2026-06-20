@@ -1,6 +1,10 @@
 const User = require('../../models/endUser');
 const OAuthAccount = require('../../models/OAuthAccount');
+const { SafeQueryBuilder } = require('../../middleware/queryValidation');
 const { createTokens } = require('../auth/createTokens');
+
+const oAuthAccountBuilder = new SafeQueryBuilder(OAuthAccount);
+const userBuilder = new SafeQueryBuilder(User);
 
 async function handleOAuthCallback({
   provider,
@@ -13,19 +17,19 @@ async function handleOAuthCallback({
 }) {
 
   // 1️⃣ Check if this OAuth account already exists
-  const existingOAuth = await OAuthAccount.findOne({
+  const existingOAuth = await oAuthAccountBuilder.findOne({
     provider,
     providerUserId
   });
 
   if (existingOAuth) {
-    const user = await User.findById(existingOAuth.userId);
+    const user = await userBuilder.findById(existingOAuth.userId);
     return createTokens(user);
   }
 
   // 2️⃣ Linking flow (user already logged in)
   if (state?.intent === 'link' && state?.userId) {
-    const user = await User.findById(state.userId);
+    const user = await userBuilder.findById(state.userId);
 
     if (!user) throw new Error('USER_NOT_FOUND');
 
@@ -51,7 +55,7 @@ async function handleOAuthCallback({
 
   // 3️⃣ No OAuth found → check email
   if (email) {
-    const userByEmail = await User.findOne({ email });
+    const userByEmail = await userBuilder.findOne({ email });
 
     if (userByEmail && emailVerified) {
       await OAuthAccount.create({

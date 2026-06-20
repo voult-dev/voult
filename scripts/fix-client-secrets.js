@@ -1,11 +1,13 @@
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
+const { SafeQueryBuilder } = require('../middleware/queryValidation');
 
 // Load environment variables
 dotenv.config();
 
 // Import models
 const App = require('../models/app');
+const appBuilder = new SafeQueryBuilder(App);
 
 async function fixClientSecrets() {
   try {
@@ -14,7 +16,7 @@ async function fixClientSecrets() {
     console.log('Connected to database');
 
     // Find apps that don't have clientSecretHash
-    const appsWithoutHash = await App.find({
+    const appsWithoutHash = await appBuilder.find({
       clientSecretHash: { $exists: false }
     });
 

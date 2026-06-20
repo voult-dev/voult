@@ -1,5 +1,8 @@
 const { ApiError } = require('../utils/apiError');
 const EndUser = require('../models/endUser');
+const { SafeQueryBuilder } = require('./queryValidation');
+
+const endUserBuilder = new SafeQueryBuilder(EndUser);
 
 module.exports = async function requireEndUserAuth(req, res, next) {
   const decoded = req.tokenPayload;
@@ -10,7 +13,7 @@ module.exports = async function requireEndUserAuth(req, res, next) {
     );
   }
 
-  const user = await EndUser.findById(decoded.id);
+  const user = await endUserBuilder.findById(decoded.id);
 
   if (!user || !user.isActive) {
     return next(

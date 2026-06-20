@@ -1,6 +1,8 @@
 const App = require('../models/app')
+const { SafeQueryBuilder } = require('./queryValidation');
 const { ApiError } = require('../utils/apiError');
 
+const appBuilder = new SafeQueryBuilder(App);
 
 module.exports.verifyClient = async (req, res, next) => {
   const clientId = req.headers['x-client-id'];
@@ -13,7 +15,7 @@ module.exports.verifyClient = async (req, res, next) => {
     throw new ApiError(401, 'CLIENT_ID_REQUIRED', 'Client ID is required');
   }
 
-  const app = await App.findOne({
+  const app = await appBuilder.findOne({
     clientId,
     deletedAt: { $exists: false }
   }).select('+clientSecretHash');
@@ -59,7 +61,7 @@ module.exports.verifyClientIdOnly = async (req, res, next) => {
     throw new ApiError(401, 'CLIENT_ID_REQUIRED', 'Client ID is required');
   }
 
-  const app = await App.findOne({ clientId });
+  const app = await appBuilder.findOne({ clientId });
 
   if (!app || !app.isActive) {
     throw new ApiError(401, 'INVALID_CLIENT', 'Invalid or inactive app');

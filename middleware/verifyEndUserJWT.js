@@ -1,5 +1,8 @@
 const jwt = require('jsonwebtoken');
 const EndUser = require('../models/endUser');
+const { SafeQueryBuilder } = require('./queryValidation');
+
+const endUserBuilder = new SafeQueryBuilder(EndUser);
 
 const JWT_SECRET = process.env.ENDUSER_JWT_SECRET;
 
@@ -38,7 +41,7 @@ module.exports.verifyEndUserJWT = async (req, res, next) => {
 
     const payload = jwt.verify(token, JWT_SECRET);
 
-    const endUser = await EndUser.findById(payload.sub).select('+linkedProviders');
+    const endUser = await endUserBuilder.findById(payload.sub).select('+linkedProviders');
     
     if (!endUser) {
       return next();

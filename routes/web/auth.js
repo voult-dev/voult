@@ -16,7 +16,7 @@ const { csrfProtection } = require('../../middleware/csrfProtection');
 router.get('/login', redirectIfLoggedIn, controller.loginForm);
 
 router.post('/login', 
-  csrfProtection,
+  // csrfProtection,
   storeReturnTo, 
   webAuthLimiter,
   passport.authenticate('local', {

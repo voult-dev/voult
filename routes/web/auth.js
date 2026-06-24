@@ -9,13 +9,13 @@ const catchAsync = require('../../utils/catchAsync');
 
 const { redirectIfLoggedIn, storeReturnTo, isLoggedIn } = require('../../middleware');
 
-const { webAuthLimiter } = require('../../middleware/rateLimiters');
+const { ipBasedLimiter } = require('../../middleware/advancedRateLimiting');
 
 router.get('/login', redirectIfLoggedIn, controller.loginForm);
 
 router.post('/login', 
   storeReturnTo, 
-  webAuthLimiter,
+  ipBasedLimiter,
   passport.authenticate('local', {
     failureRedirect: '/login',
     failureFlash: 'Invalid credentials. Please try again.'
@@ -25,7 +25,7 @@ router.post('/login',
 
 router.get('/register', redirectIfLoggedIn, controller.registerForm);
 
-router.post('/register', webAuthLimiter, catchAsync(controller.register));
+router.post('/register', ipBasedLimiter, catchAsync(controller.register));
 
 router.get('/auth/google', controller.startGoogle);
 

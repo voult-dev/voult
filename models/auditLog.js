@@ -77,5 +77,6 @@ AuditLogSchema.index({ userId: 1, appId: 1, timestamp: -1 });
 AuditLogSchema.index({ appId: 1, action: 1, timestamp: -1 });
 AuditLogSchema.index({ ipAddress: 1, timestamp: -1 });
 AuditLogSchema.index({ timestamp: -1 });
+AuditLogSchema.index({ appId: 1, riskLevel: 1, timestamp: -1 });
 
 module.exports = mongoose.model('AuditLog', AuditLogSchema);

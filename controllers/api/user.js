@@ -14,6 +14,7 @@ const { validatePassword } = require('../../validators/password');
 const { PASSWORD_RULES_MESSAGE } = require('../../constants/passwordRules');
 
 const endUserBuilder = new SafeQueryBuilder(EndUser);
+const AuditService = require('../../services/auditService');
 
 // verify Email.
 module.exports.verifyEmail = async (req, res) => {
@@ -40,6 +41,11 @@ module.exports.verifyEmail = async (req, res) => {
     });
   
     if (!user) {
+      await AuditService.log('EMAIL_VERIFIED', null, appId, req, {
+        details: { reason: 'TOKEN_EXPIRED' },
+        status: 'FAILURE',
+        riskLevel: 'LOW'
+      });
       throw new ApiError(
         400,
         'TOKEN_EXPIRED',
@@ -52,6 +58,10 @@ module.exports.verifyEmail = async (req, res) => {
     user.emailVerificationExpires = undefined;
   
     await user.save();
+
+    await AuditService.log('EMAIL_VERIFIED', user._id, appId, req, {
+      details: { email: user.email }
+    });
   
     res.status(200).json({
       message: 'Email verified successfully'
@@ -64,6 +74,11 @@ module.exports.verifyEmail = async (req, res) => {
     const app = req.appClient;
   
     if (!email) {
+      await AuditService.log('PASSWORD_RESET', null, app._id, req, {
+        details: { reason: 'VALIDATION_ERROR' },
+        status: 'FAILURE',
+        riskLevel: 'LOW'
+      });
       throw new ApiError(
         400,
         'VALIDATION_ERROR',
@@ -78,6 +93,11 @@ module.exports.verifyEmail = async (req, res) => {
     });
   
     if (!user) {
+      await AuditService.log('PASSWORD_RESET', null, app._id, req, {
+        details: { email, reason: 'USER_NOT_FOUND' },
+        status: 'FAILURE',
+        riskLevel: 'LOW'
+      });
       return res.status(200).json({
         message: 'If that email exists, a reset link has been sent'
       });
@@ -93,6 +113,11 @@ module.exports.verifyEmail = async (req, res) => {
       app.name,
       resetUrl
     );
+
+    await AuditService.log('PASSWORD_RESET', user._id, app._id, req, {
+      details: { email: user.email, stage: 'REQUESTED' },
+      status: 'PENDING'
+    });
   
     res.status(200).json({
       message: 'If that email exists, a reset link has been sent'
@@ -105,6 +130,13 @@ module.exports.verifyEmail = async (req, res) => {
     const {token, appId} = req.query
   
     if (!token || !appId || !password) {
+      if (appId) {
+        await AuditService.log('PASSWORD_RESET', null, appId, req, {
+          details: { reason: 'VALIDATION_ERROR' },
+          status: 'FAILURE',
+          riskLevel: 'LOW'
+        });
+      }
       throw new ApiError(
         400,
         'VALIDATION_ERROR',
@@ -113,6 +145,11 @@ module.exports.verifyEmail = async (req, res) => {
     };
   
     if (!validatePassword(password)) {
+      await AuditService.log('PASSWORD_RESET', null, appId, req, {
+        details: { reason: 'WEAK_PASSWORD' },
+        status: 'FAILURE',
+        riskLevel: 'LOW'
+      });
       throw new ApiError(
         400,
         'WEAK_PASSWORD',
@@ -137,6 +174,11 @@ module.exports.verifyEmail = async (req, res) => {
     await new Promise(resolve => setTimeout(resolve, delay));
 
     if (!user || !tokenMatches) {
+      await AuditService.log('PASSWORD_RESET', null, appId, req, {
+        details: { reason: 'INVALID_RESET_LINK' },
+        status: 'FAILURE',
+        riskLevel: 'MEDIUM'
+      });
       return res.status(400).json({
         error: 'INVALID_RESET_LINK',
         message: 'Password reset link is invalid or expired'
@@ -151,6 +193,10 @@ module.exports.verifyEmail = async (req, res) => {
     user.tokenVersion += 1; 
   
     await user.save();
+
+    await AuditService.log('PASSWORD_RESET', user._id, appId, req, {
+      details: { email: user.email, stage: 'COMPLETED' }
+    });
   
     res.status(200).json({
       message: 'Password reset successfully'
@@ -164,6 +210,11 @@ module.exports.verifyEmail = async (req, res) => {
     const user = req.endUser;
   
     if (!user.isActive) {
+      await AuditService.log('ACCOUNT_DISABLED', user._id, user.app, req, {
+        details: { reason: 'ALREADY_DISABLED' },
+        status: 'FAILURE',
+        riskLevel: 'LOW'
+      });
       throw new ApiError(
         400,
         'ACCOUNT_ALREADY_DISABLED',
@@ -176,6 +227,10 @@ module.exports.verifyEmail = async (req, res) => {
     user.disabledReason = 'User requested';
   
     await user.save();
+
+    await AuditService.log('ACCOUNT_DISABLED', user._id, user.app, req, {
+      details: { reason: 'USER_REQUESTED' }
+    });
   
     res.status(200).json({
       success: true,
@@ -191,6 +246,11 @@ module.exports.verifyEmail = async (req, res) => {
     const user = req.endUser;
   
     if (user.isActive) {
+      await AuditService.log('ACCOUNT_ENABLED', user._id, user.app, req, {
+        details: { reason: 'ALREADY_ACTIVE' },
+        status: 'FAILURE',
+        riskLevel: 'LOW'
+      });
       throw new ApiError(
         400,
         'ACCOUNT_ALREADY_ACTIVE',
@@ -206,6 +266,8 @@ module.exports.verifyEmail = async (req, res) => {
     user.tokenVersion += 1;
   
     await user.save();
+
+    await AuditService.log('ACCOUNT_ENABLED', user._id, user.app, req);
   
     res.status(200).json({
       success: true,

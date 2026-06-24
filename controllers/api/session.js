@@ -1,6 +1,7 @@
 const RefreshToken = require('../../models/refreshToken');
 const { SafeQueryBuilder } = require('../../middleware/queryValidation');
 const {ApiError} = require('../../utils/apiError');
+const AuditService = require('../../services/auditService');
 
 const { createRefreshToken } = require('../../utils/refreshToken');
 const { signAccessToken } = require('../../utils/jwt');
@@ -56,6 +57,10 @@ module.exports.listSessions = async (req, res) => {
   
     session.revokedAt = new Date();
     await session.save();
+
+    await AuditService.log('SESSION_REVOKED', req.endUser._id, req.endUser.app, req, {
+      details: { sessionId, scope: 'single' }
+    });
   
     res.status(200).json({
       message: 'Session revoked successfully',
@@ -153,16 +158,28 @@ module.exports.refresh = async (req, res) => {
     throw new ApiError(401, 'INVALID_REFRESH_TOKEN', 'Invalid refresh token');
   }
 
+  const appId = storedToken.app;
+
   // REUSE DETECTION
   if (storedToken.revokedAt) {
     await refreshTokenBuilder.updateMany(
       { endUser: storedToken.endUser._id, app: storedToken.app, revokedAt: null },
       { revokedAt: new Date() }
     );
+    await AuditService.log('TOKEN_REVOKED', storedToken.endUser._id, appId, req, {
+      details: { reason: 'REFRESH_TOKEN_REUSE_DETECTED' },
+      status: 'FAILURE',
+      riskLevel: 'CRITICAL'
+    });
     throw new ApiError(401, 'REFRESH_TOKEN_REUSE_DETECTED', 'Session compromised. Please log in again.');
   }
 
   if (storedToken.expiresAt < new Date()) {
+    await AuditService.log('SESSION_CREATED', storedToken.endUser._id, appId, req, {
+      details: { reason: 'REFRESH_TOKEN_EXPIRED' },
+      status: 'FAILURE',
+      riskLevel: 'LOW'
+    });
     throw new ApiError(401, 'REFRESH_TOKEN_EXPIRED', 'Refresh token expired');
   }
 
@@ -181,6 +198,10 @@ module.exports.refresh = async (req, res) => {
   await storedToken.save();
 
   const accessToken = signAccessToken(storedToken.endUser, storedToken.app);
+
+  await AuditService.log('SESSION_CREATED', storedToken.endUser._id, appId, req, {
+    details: { method: 'refresh' }
+  });
 
   res.json({ accessToken, refreshToken: newRefreshToken });
 };

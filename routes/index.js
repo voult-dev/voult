@@ -18,6 +18,7 @@ const apiLinkedin = require('./api/linkedin');
 const apiMicorsoft  = require('./api/microsoft');
 const oauthLinking = require('./api/oauthLinking');
 const oauth = require('./api/oauth');
+const auditLogRoutes = require('./api/auditLog');
 const userOAuthAccounts = require('./api/userOAuthAccounts');
 const magicLinkRoutes = require('./api/magicLink');
 
@@ -33,6 +34,7 @@ router.use('/api', verifyEndUserJWT);
 // Mount API Routes
 router.use('/api', oauth);
 router.use('/api/auth', apiAuthRoutes);
+router.use('/api/audit-logs', auditLogRoutes);
 router.use('/api/sessions', sessionRoutes);
 router.use('/api/user', apiUserRoutes);
 router.use('/api/auth/google', apiGoogle);

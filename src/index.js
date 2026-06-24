@@ -113,6 +113,9 @@ const routes = require('../routes/index');
 
 require('../config/database')();
 
+const AuditRetentionService = require('../services/auditRetentionService');
+AuditRetentionService.scheduleRetentionJob();
+
 app.use(session(sessionConfig));
 app.use(flash());
 

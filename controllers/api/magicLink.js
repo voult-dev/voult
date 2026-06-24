@@ -17,6 +17,7 @@ const { SafeQueryBuilder } = require('../../middleware/queryValidation');
 const { createTokens } = require('../../utils/createTokens');
 const crypto = require('crypto');
 const { ApiError } = require('../../utils/apiError');
+const AuditService = require('../../services/auditService');
 
 const appBuilder = new SafeQueryBuilder(App);
 const endUserBuilder = new SafeQueryBuilder(EndUser);
@@ -94,6 +95,11 @@ module.exports.sendLink = async (req, res) => {
   // Send the email
   await magicLinkEmail(normalizedEmail, magicLinkURL);
 
+  await AuditService.log('SESSION_CREATED', null, app._id, req, {
+    details: { email: normalizedEmail, method: 'magic_link', stage: 'SENT' },
+    status: 'PENDING'
+  });
+
   res.status(200).json({
     success: true,
     message: 'Magic link sent successfully. Please check your email.'
@@ -120,6 +126,8 @@ module.exports.validateToken = async (req, res) => {
     throw new ApiError(400, 'INVALID_OR_EXPIRED_TOKEN', 'Invalid or expired token');
   }
 
+  const appId = tokenDoc.app;
+
   // Find end user for this app + email
   const user = await endUserBuilder.findOne({
     email: tokenDoc.email,
@@ -128,6 +136,11 @@ module.exports.validateToken = async (req, res) => {
   });
 
   if (!user) {
+    await AuditService.log('LOGIN_FAILURE', null, appId, req, {
+      details: { email: tokenDoc.email, method: 'magic_link', reason: 'USER_NOT_FOUND' },
+      status: 'FAILURE',
+      riskLevel: 'MEDIUM'
+    });
     throw new ApiError(
       404,
       'USER_NOT_FOUND',
@@ -137,6 +150,11 @@ module.exports.validateToken = async (req, res) => {
 
   // Ensure account is active
   if (!user.isActive) {
+    await AuditService.log('LOGIN_FAILURE', user._id, appId, req, {
+      details: { email: tokenDoc.email, method: 'magic_link', reason: 'ACCOUNT_DISABLED' },
+      status: 'FAILURE',
+      riskLevel: 'MEDIUM'
+    });
     throw new ApiError(403, 'ACCOUNT_DISABLED', 'Account is disabled');
   }
 
@@ -152,6 +170,10 @@ module.exports.validateToken = async (req, res) => {
     app: tokenDoc.app,
     ipAddress: req.ip,
     userAgent: req.get('User-Agent')
+  });
+
+  await AuditService.log('LOGIN_SUCCESS', user._id, appId, req, {
+    details: { email: user.email, method: 'magic_link' }
   });
 
   res.status(200).json({

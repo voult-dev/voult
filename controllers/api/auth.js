@@ -3,6 +3,8 @@ const { SafeQueryBuilder } = require('../../middleware/queryValidation');
 
 const { signEndUserToken, signAccessToken, createRefreshToken } = require('../../utils/jwt');
 const { ApiError } = require('../../utils/apiError');
+
+const AuditService = require('../../services/auditService');
 const App = require('../../models/app');
 const RefreshToken = require('../../models/refreshToken');
 
@@ -289,6 +291,11 @@ module.exports.emailLogin = async (req, res) => {
   const app = req.appClient;
 
   if (!normalizedEmail || !password) {
+    await AuditService.log('LOGIN', null, app._id, req, {
+      details: { email, reason: 'VALIDATION_ERROR' },
+      status: 'FAILURE',
+      riskLevel: 'MEDIUM'
+    });
     throw new ApiError(400, 'VALIDATION_ERROR', 'Email and password are required');
   }
 
@@ -299,8 +306,13 @@ module.exports.emailLogin = async (req, res) => {
   }).select('+passwordHash');
 
   if (!user) {
+    await AuditService.log('LOGIN_FAILURE', null, app._id, req, {
+      details: { email, reason: 'USER_NOT_FOUND' },
+      status: 'FAILURE',
+      riskLevel: 'MEDIUM'
+    });   
     throw new ApiError(401, 'INVALID_CREDENTIALS', 'Invalid email or password');
-  };
+  }
 
   // 🔒 Account locked
   if (user.lockUntil && user.lockUntil > Date.now()) {
@@ -376,6 +388,21 @@ module.exports.emailLogin = async (req, res) => {
     }
   });
 };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // =======================
 // USERNAME LOGIN

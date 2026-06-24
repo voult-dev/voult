@@ -44,6 +44,11 @@ module.exports.register = async (req, res) => {
     }
 
     if (!sanitizedEmail || !password) {
+      await AuditService.log('REGISTER', null, app._id, req, {
+        details: { email: sanitizedEmail, reason: 'VALIDATION_ERROR' },
+        status: 'FAILURE',
+        riskLevel: 'MEDIUM'
+      });
       throw new ApiError(
         400,
         'VALIDATION_ERROR',
@@ -55,6 +60,11 @@ module.exports.register = async (req, res) => {
     if (sanitizedUsername) {
       const usernameRegex = /^[a-zA-Z0-9_]{3,30}$/;
       if (!usernameRegex.test(sanitizedUsername)) {
+        await AuditService.log('REGISTER', null, app._id, req, {
+          details: { email: sanitizedEmail, username: sanitizedUsername, reason: 'INVALID_USERNAME' },
+          status: 'FAILURE',
+          riskLevel: 'LOW'
+        });
         throw new ApiError(
           400,
           'INVALID_USERNAME',
@@ -70,6 +80,11 @@ module.exports.register = async (req, res) => {
       });
 
       if (existingUsernameUser) {
+        await AuditService.log('REGISTER', existingUsernameUser._id, app._id, req, {
+          details: { email: sanitizedEmail, username: sanitizedUsername, reason: 'USERNAME_TAKEN' },
+          status: 'FAILURE',
+          riskLevel: 'LOW'
+        });
         throw new ApiError(
           409,
           'USERNAME_TAKEN',
@@ -84,6 +99,11 @@ module.exports.register = async (req, res) => {
     });
 
     if (existingUser) {
+      await AuditService.log('REGISTER', existingUser._id, app._id, req, {
+        details: { email: sanitizedEmail, reason: 'USER_EXISTS' },
+        status: 'FAILURE',
+        riskLevel: 'LOW'
+      });
       throw new ApiError(
         409,
         'USER_EXISTS',
@@ -92,6 +112,11 @@ module.exports.register = async (req, res) => {
     };
 
     if (!validatePassword(password)) {
+      await AuditService.log('REGISTER', null, app._id, req, {
+        details: { email: sanitizedEmail, reason: 'WEAK_PASSWORD' },
+        status: 'FAILURE',
+        riskLevel: 'LOW'
+      });
       throw new ApiError(
         400,
         'WEAK_PASSWORD',
@@ -138,6 +163,10 @@ module.exports.register = async (req, res) => {
       // Registration still succeeds even if email fails
     });
 
+    await AuditService.log('REGISTER', user._id, app._id, req, {
+      details: { email: sanitizedEmail, username: user.username, method: 'email' }
+    });
+
     console.log('[AUTH] register() completed successfully for:', sanitizedEmail);
     res.status(201).json({
       message: 'User registered successfully',
@@ -170,6 +199,11 @@ module.exports.usernameRegister = async (req, res) => {
 
   // Username and password are required
   if (!sanitizedUsername || !password) {
+    await AuditService.log('REGISTER', null, app._id, req, {
+      details: { username: sanitizedUsername, reason: 'VALIDATION_ERROR' },
+      status: 'FAILURE',
+      riskLevel: 'MEDIUM'
+    });
     throw new ApiError(
       400,
       'VALIDATION_ERROR',
@@ -180,6 +214,11 @@ module.exports.usernameRegister = async (req, res) => {
   // Validate username format
   const usernameRegex = /^[a-zA-Z0-9_]{3,30}$/;
   if (!usernameRegex.test(sanitizedUsername)) {
+    await AuditService.log('REGISTER', null, app._id, req, {
+      details: { username: sanitizedUsername, reason: 'INVALID_USERNAME' },
+      status: 'FAILURE',
+      riskLevel: 'LOW'
+    });
     throw new ApiError(
       400,
       'INVALID_USERNAME',
@@ -195,6 +234,11 @@ module.exports.usernameRegister = async (req, res) => {
   });
 
   if (existingUsernameUser) {
+    await AuditService.log('REGISTER', existingUsernameUser._id, app._id, req, {
+      details: { username: sanitizedUsername, reason: 'USERNAME_TAKEN' },
+      status: 'FAILURE',
+      riskLevel: 'LOW'
+    });
     throw new ApiError(
       409,
       'USERNAME_TAKEN',
@@ -211,6 +255,11 @@ module.exports.usernameRegister = async (req, res) => {
     });
 
     if (existingEmailUser) {
+      await AuditService.log('REGISTER', existingEmailUser._id, app._id, req, {
+        details: { username: sanitizedUsername, email: sanitizedEmail, reason: 'USER_EXISTS' },
+        status: 'FAILURE',
+        riskLevel: 'LOW'
+      });
       throw new ApiError(
         409,
         'USER_EXISTS',
@@ -221,6 +270,11 @@ module.exports.usernameRegister = async (req, res) => {
 
   // Validate password strength
   if (!validatePassword(password)) {
+    await AuditService.log('REGISTER', null, app._id, req, {
+      details: { username: sanitizedUsername, reason: 'WEAK_PASSWORD' },
+      status: 'FAILURE',
+      riskLevel: 'LOW'
+    });
     throw new ApiError(
       400,
       'WEAK_PASSWORD',
@@ -268,6 +322,10 @@ module.exports.usernameRegister = async (req, res) => {
     });
   }
 
+  await AuditService.log('REGISTER', user._id, app._id, req, {
+    details: { username: sanitizedUsername, email: user.email, method: 'username' }
+  });
+
   res.status(201).json({
     message: 'User registered successfully',
     token,
@@ -291,7 +349,7 @@ module.exports.emailLogin = async (req, res) => {
   const app = req.appClient;
 
   if (!normalizedEmail || !password) {
-    await AuditService.log('LOGIN', null, app._id, req, {
+    await AuditService.log('LOGIN_FAILURE', null, app._id, req, {
       details: { email, reason: 'VALIDATION_ERROR' },
       status: 'FAILURE',
       riskLevel: 'MEDIUM'
@@ -307,128 +365,19 @@ module.exports.emailLogin = async (req, res) => {
 
   if (!user) {
     await AuditService.log('LOGIN_FAILURE', null, app._id, req, {
-      details: { email, reason: 'USER_NOT_FOUND' },
+      details: { email: normalizedEmail, reason: 'USER_NOT_FOUND' },
       status: 'FAILURE',
       riskLevel: 'MEDIUM'
-    });   
+    });
     throw new ApiError(401, 'INVALID_CREDENTIALS', 'Invalid email or password');
   }
 
-  // 🔒 Account locked
   if (user.lockUntil && user.lockUntil > Date.now()) {
-    throw new ApiError(
-      423,
-      'ACCOUNT_LOCKED',
-      'Too many failed login attempts. Try again later.'
-    );
-  }
-  
-  const isValid = await user.verifyPassword(password);
-
-  //  Wrong password
-  if (!isValid) {
-    user.failedLoginAttempts += 1;
-
-    if (user.failedLoginAttempts >= MAX_FAILED_ATTEMPTS) {
-      user.lockUntil = new Date(Date.now() + LOCK_TIME);
-      console.log("App Name: ",app.name);
-
-      //  Send lock email ONCE
-      try{
-      await accountLockedEmail(
-        user.email,
-        user.email,
-        app.name,
-        user.lockUntil,
-        'https://voult.dev/support'
-      );
-    } catch(err){
-      console.error('Account Lock Email Failed: ', err.message);
-    }
-    }
-    
-    throw new ApiError(401, 'INVALID_CREDENTIALS', 'Invalid email or password');
-  }
-
-  // ✅ Success → reset lock state
-  user.failedLoginAttempts = 0;
-  user.lockUntil = null;
-
-  if (!user.isEmailVerified) {
-    throw new ApiError(403, 'EMAIL_NOT_VERIFIED', 'Please verify your email');
-  }
-
-  if (!user.isActive) {
-    throw new ApiError(403, 'ACCOUNT_DISABLED', 'Account is disabled');
-  }
-
-  user.lastLoginAt = new Date();
-
-  const appO = await appBuilder.findById(app._id);
-  appO.usage.totalLogins += 1;
-  await appO.save();
-
-  const accessToken = signAccessToken(user, app);
-  const { rawToken: refreshToken } = await createRefreshToken({
-    endUser: user,
-    app,
-    ipAddress: req.ip,
-    userAgent: req.headers['user-agent']
-  });
-  
-  await user.save();
-
-  res.status(200).json({
-    message: 'Login successful',
-    accessToken,
-    refreshToken,
-    user: {
-      id: user._id,
-      email: user.email
-    }
-  });
-};
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// =======================
-// USERNAME LOGIN
-// =======================
-
-module.exports.usernameLogin = async (req, res) => {
-  const { username, password } = req.body;
-  const normalizedUsername = typeof username === 'string' ? username.trim().toLowerCase() : '';
-  const app = req.appClient;
-
-  if (!normalizedUsername || !password) {
-    throw new ApiError(400, 'VALIDATION_ERROR', 'Username and password are required');
-  }
-  
-  const user = await endUserBuilder.findOne({
-    app: app._id,
-    username: normalizedUsername,
-    deletedAt: null
-  }).select('+passwordHash');
-  
-  if (!user) {
-    throw new ApiError(401, 'INVALID_CREDENTIALS', 'Invalid username or password');
-  }
-
-  // 🔒 Account locked check
-  if (user.lockUntil && user.lockUntil > Date.now()) {
+    await AuditService.log('LOGIN_FAILURE', user._id, app._id, req, {
+      details: { email: normalizedEmail, reason: 'ACCOUNT_LOCKED' },
+      status: 'FAILURE',
+      riskLevel: 'HIGH'
+    });
     throw new ApiError(
       423,
       'ACCOUNT_LOCKED',
@@ -438,15 +387,13 @@ module.exports.usernameLogin = async (req, res) => {
 
   const isValid = await user.verifyPassword(password);
 
-  // Wrong password - track failed attempts
   if (!isValid) {
     user.failedLoginAttempts += 1;
 
     if (user.failedLoginAttempts >= MAX_FAILED_ATTEMPTS) {
       user.lockUntil = new Date(Date.now() + LOCK_TIME);
-      console.log("App Name: ", app.name);
+      console.log('App Name: ', app.name);
 
-      // Send lock email ONCE
       try {
         await accountLockedEmail(
           user.email,
@@ -459,20 +406,165 @@ module.exports.usernameLogin = async (req, res) => {
         console.error('Account Lock Email Failed: ', err.message);
       }
     }
-    
-    throw new ApiError(401, 'INVALID_CREDENTIALS', 'Invalid username or password');
+
+    await user.save();
+
+    await AuditService.log('LOGIN_FAILURE', user._id, app._id, req, {
+      details: { email: normalizedEmail, reason: 'INVALID_PASSWORD' },
+      status: 'FAILURE',
+      riskLevel: 'MEDIUM'
+    });
+    throw new ApiError(401, 'INVALID_CREDENTIALS', 'Invalid email or password');
   }
 
-  // ✅ Success → reset lock state
   user.failedLoginAttempts = 0;
   user.lockUntil = null;
 
-  // Check email verification (if user has an email)
-  if (user.email && !user.isEmailVerified) {
+  if (!user.isEmailVerified) {
+    await AuditService.log('LOGIN_FAILURE', user._id, app._id, req, {
+      details: { email: normalizedEmail, reason: 'EMAIL_NOT_VERIFIED' },
+      status: 'FAILURE',
+      riskLevel: 'LOW'
+    });
     throw new ApiError(403, 'EMAIL_NOT_VERIFIED', 'Please verify your email');
   }
 
   if (!user.isActive) {
+    await AuditService.log('LOGIN_FAILURE', user._id, app._id, req, {
+      details: { email: normalizedEmail, reason: 'ACCOUNT_DISABLED' },
+      status: 'FAILURE',
+      riskLevel: 'MEDIUM'
+    });
+    throw new ApiError(403, 'ACCOUNT_DISABLED', 'Account is disabled');
+  }
+
+  user.lastLoginAt = new Date();
+
+  const appO = await appBuilder.findById(app._id);
+  appO.usage.totalLogins += 1;
+  await appO.save();
+
+  const accessToken = signAccessToken(user, app);
+  const { rawToken: refreshToken } = await createRefreshToken({
+    endUser: user,
+    app,
+    ipAddress: req.ip,
+    userAgent: req.headers['user-agent']
+  });
+
+  await user.save();
+
+  await AuditService.log('LOGIN_SUCCESS', user._id, app._id, req, {
+    details: { email: normalizedEmail, method: 'email' }
+  });
+
+  res.status(200).json({
+    message: 'Login successful',
+    accessToken,
+    refreshToken,
+    user: {
+      id: user._id,
+      email: user.email
+    }
+  });
+};
+
+// =======================
+// USERNAME LOGIN
+// =======================
+
+module.exports.usernameLogin = async (req, res) => {
+  const { username, password } = req.body;
+  const normalizedUsername = typeof username === 'string' ? username.trim().toLowerCase() : '';
+  const app = req.appClient;
+
+  if (!normalizedUsername || !password) {
+    await AuditService.log('LOGIN_FAILURE', null, app._id, req, {
+      details: { username, reason: 'VALIDATION_ERROR' },
+      status: 'FAILURE',
+      riskLevel: 'MEDIUM'
+    });
+    throw new ApiError(400, 'VALIDATION_ERROR', 'Username and password are required');
+  }
+  
+  const user = await endUserBuilder.findOne({
+    app: app._id,
+    username: normalizedUsername,
+    deletedAt: null
+  }).select('+passwordHash');
+  
+  if (!user) {
+    await AuditService.log('LOGIN_FAILURE', null, app._id, req, {
+      details: { username: normalizedUsername, reason: 'USER_NOT_FOUND' },
+      status: 'FAILURE',
+      riskLevel: 'MEDIUM'
+    });
+    throw new ApiError(401, 'INVALID_CREDENTIALS', 'Invalid username or password');
+  }
+
+  if (user.lockUntil && user.lockUntil > Date.now()) {
+    await AuditService.log('LOGIN_FAILURE', user._id, app._id, req, {
+      details: { username: normalizedUsername, reason: 'ACCOUNT_LOCKED' },
+      status: 'FAILURE',
+      riskLevel: 'HIGH'
+    });
+    throw new ApiError(
+      423,
+      'ACCOUNT_LOCKED',
+      'Too many failed login attempts. Try again later.'
+    );
+  }
+
+  const isValid = await user.verifyPassword(password);
+
+  if (!isValid) {
+    user.failedLoginAttempts += 1;
+
+    if (user.failedLoginAttempts >= MAX_FAILED_ATTEMPTS) {
+      user.lockUntil = new Date(Date.now() + LOCK_TIME);
+      console.log('App Name: ', app.name);
+
+      try {
+        await accountLockedEmail(
+          user.email,
+          user.email,
+          app.name,
+          user.lockUntil,
+          'https://voult.dev/support'
+        );
+      } catch (err) {
+        console.error('Account Lock Email Failed: ', err.message);
+      }
+    }
+
+    await user.save();
+
+    await AuditService.log('LOGIN_FAILURE', user._id, app._id, req, {
+      details: { username: normalizedUsername, reason: 'INVALID_PASSWORD' },
+      status: 'FAILURE',
+      riskLevel: 'MEDIUM'
+    });
+    throw new ApiError(401, 'INVALID_CREDENTIALS', 'Invalid username or password');
+  }
+
+  user.failedLoginAttempts = 0;
+  user.lockUntil = null;
+
+  if (user.email && !user.isEmailVerified) {
+    await AuditService.log('LOGIN_FAILURE', user._id, app._id, req, {
+      details: { username: normalizedUsername, reason: 'EMAIL_NOT_VERIFIED' },
+      status: 'FAILURE',
+      riskLevel: 'LOW'
+    });
+    throw new ApiError(403, 'EMAIL_NOT_VERIFIED', 'Please verify your email');
+  }
+
+  if (!user.isActive) {
+    await AuditService.log('LOGIN_FAILURE', user._id, app._id, req, {
+      details: { username: normalizedUsername, reason: 'ACCOUNT_DISABLED' },
+      status: 'FAILURE',
+      riskLevel: 'MEDIUM'
+    });
     throw new ApiError(403, 'ACCOUNT_DISABLED', 'Account is disabled');
   }
   
@@ -491,6 +583,10 @@ module.exports.usernameLogin = async (req, res) => {
   });
   
   await user.save();
+
+  await AuditService.log('LOGIN_SUCCESS', user._id, app._id, req, {
+    details: { username: normalizedUsername, method: 'username' }
+  });
 
   res.status(200).json({
     message: 'Login successful',
@@ -509,6 +605,11 @@ module.exports.usernameLogin = async (req, res) => {
 // =======================
 module.exports.logout = async (req, res) => {
   if (!req.endUser) {
+    await AuditService.log('SESSION_REVOKED', null, req.appClient._id, req, {
+      details: { reason: 'UNAUTHORIZED' },
+      status: 'FAILURE',
+      riskLevel: 'MEDIUM'
+    });
     throw new ApiError(
       401,
       'UNAUTHORIZED',
@@ -533,7 +634,11 @@ module.exports.logout = async (req, res) => {
 
   await req.endUser.save();
 
+  await AuditService.log('SESSION_REVOKED', req.endUser._id, req.appClient._id, req, {
+    details: { tokenVersion: req.endUser.tokenVersion }
+  });
+
   res.status(200).json({
     message: 'Logged out successfully',
-  })
+  });
 };

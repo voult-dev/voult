@@ -27,7 +27,7 @@ const AuditLogSchema = new Schema(
         userId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'EndUser',
-            required: true
+            default: null
         },
         appId: {
             type: mongoose.Schema.Types.ObjectId,

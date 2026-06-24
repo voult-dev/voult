@@ -2,7 +2,8 @@ const express = require('express');
 const router = express.Router();
 
 const { apiLimiter } = require('../../middleware/rateLimiters');
-// const { csrfProtection } = require('../../middleware/csrfProtection');
+
+const {emailBasedLimiter, ipBasedLimiter} = require('../../middleware/advancedRateLimiting');
 const verifyClient = require('../../middleware/verifyClient').verifyClient;
 const authController = require('../../controllers/api/auth');
 const requireEndUserAuth = require('../../middleware/requireEndUserAuth');

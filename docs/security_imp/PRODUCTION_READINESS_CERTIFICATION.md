@@ -472,7 +472,7 @@ Upon completion of all security hardening measures outlined in the **SECURITY_HA
 
 **Advanced Rate Limiting:**
 
-- [ ] Set up Redis infrastructure
+- [x] Set up Redis infrastructure
 - [x] Create `middleware/advancedRateLimiting.js`
 - [x] Implement per-user limiting
 - [x] Implement per-email limiting

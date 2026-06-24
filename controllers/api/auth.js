@@ -140,6 +140,11 @@ module.exports.register = async (req, res) => {
     appO.usage.totalRegistrations = userPerApp;
 
     await appO.save();
+    
+    const DBapp = await App.findById(app._id);
+    const users = await EndUser.countDocuments({app: app._id});
+    DBapp.users = users;
+    await DBapp.save();
 
     const verifyToken = await user.generateEmailVerificationToken();
 

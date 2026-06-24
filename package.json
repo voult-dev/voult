@@ -44,6 +44,8 @@
     "passport-local": "^1.0.0",
     "passport-local-mongoose": "^9.0.1",
     "querystring": "^0.2.1",
+    "rate-limit-redis": "^5.0.0",
+    "redis": "^6.0.1",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
     "yamljs": "^0.3.0"

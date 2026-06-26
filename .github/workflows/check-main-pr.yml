@@ -1,0 +1,22 @@
+name: Only allow staging into main
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check source branch
+        run: |
+          echo "Source branch: ${{ github.head_ref }}"
+
+          if [ "${{ github.head_ref }}" != "staging" ]; then
+            echo "❌ Only the staging branch may be merged into main."
+            exit 1
+          fi
+
+          echo "✅ PR is from staging."

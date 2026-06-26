@@ -14,8 +14,8 @@ const { ipBasedLimiter } = require('../../middleware/advancedRateLimiting');
 router.get('/login', redirectIfLoggedIn, controller.loginForm);
 
 router.post('/login', 
-  storeReturnTo, 
   ipBasedLimiter,
+  storeReturnTo, 
   passport.authenticate('local', {
     failureRedirect: '/login',
     failureFlash: 'Invalid credentials. Please try again.'

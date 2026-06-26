@@ -1431,7 +1431,7 @@ const { emailBasedLimiter, ipBasedLimiter } = require('../../middleware/advanced
 router.post(
     '/email-login',
     emailBasedLimiter(15 * 60 * 1000, 5),  // 5 attempts per email per 15 minutes
-    ipBasedLimiter(60 * 60 * 1000, 20),   // 20 attempts per IP per hour
+    ipBasedLimiter),   // 20 attempts per IP per hour
     authController.emailLogin
 );
 

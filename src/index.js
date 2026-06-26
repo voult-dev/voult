@@ -179,6 +179,10 @@ app.use('/api', (err, req, res, next) => {
   return sendError(res, err);
 });
 
+// app.use((req, res, next) => {
+//   next(new ExpressError('Page Not Found', 404));
+// });
+
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
   const status = err.statusCode || err.status || 500;

@@ -67,6 +67,7 @@ const methodOverride = require('method-override');
 
 const cors = require('cors');
 
+
 const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (mobile apps, curl, same-origin requests)

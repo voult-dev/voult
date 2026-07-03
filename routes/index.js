@@ -9,6 +9,7 @@ const developerSettingsRoutes = require('./web/settings');
 
 // API Routes
 const apiAuthRoutes = require('./api/auth');
+const mfaRoutes = require('./api/mfa');
 const sessionRoutes = require('./api/session');
 const apiUserRoutes = require('./api/user');
 const apiGoogle  = require('./api/google');
@@ -34,6 +35,7 @@ router.use('/api', verifyEndUserJWT);
 // Mount API Routes
 router.use('/api', oauth);
 router.use('/api/auth', apiAuthRoutes);
+router.use('/api/auth/mfa', mfaRoutes);
 router.use('/api/audit-logs', auditLogRoutes);
 router.use('/api/sessions', sessionRoutes);
 router.use('/api/user', apiUserRoutes);

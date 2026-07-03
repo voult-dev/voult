@@ -72,6 +72,38 @@ exports.signEndUserToken = (user, app) => {
     );
 };
 
+exports.signMfaPendingToken = (user, app) => {
+    return jwt.sign(
+      {
+        sub: user._id,
+        appId: app._id,
+        tokenVersion: user.tokenVersion,
+        purpose: 'mfa_pending'
+      },
+      JWT_SECRET,
+      {
+        expiresIn: '5m',
+        algorithm: 'HS256',
+        issuer: 'voult.dev',
+        audience: app._id.toString()
+      }
+    );
+};
+
+exports.verifyMfaPendingToken = (token, app) => {
+    const decoded = jwt.verify(token, JWT_SECRET, {
+      algorithms: ['HS256'],
+      issuer: 'voult.dev',
+      audience: app._id.toString()
+    });
+
+    if (decoded.purpose !== 'mfa_pending') {
+      throw new Error('Invalid MFA pending token');
+    }
+
+    return decoded;
+};
+
 // Re-export createRefreshToken for convenience
 const { createRefreshToken: _createRefreshToken } = require('./refreshToken');
 exports.createRefreshToken = _createRefreshToken;

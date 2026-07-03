@@ -1,10 +1,11 @@
 const EndUser = require('../../models/endUser');
 const { SafeQueryBuilder } = require('../../middleware/queryValidation');
 
-const { signEndUserToken, signAccessToken, createRefreshToken } = require('../../utils/jwt');
+const { signEndUserToken, signMfaPendingToken } = require('../../utils/jwt');
 const { ApiError } = require('../../utils/apiError');
 
 const AuditService = require('../../services/auditService');
+const { completeEndUserLogin } = require('../../services/authLoginService');
 const App = require('../../models/app');
 const RefreshToken = require('../../models/refreshToken');
 
@@ -438,34 +439,22 @@ module.exports.emailLogin = async (req, res) => {
     throw new ApiError(403, 'ACCOUNT_DISABLED', 'Account is disabled');
   }
 
-  user.lastLoginAt = new Date();
+  if (user.mfaEnabled) {
+    const mfaPendingToken = signMfaPendingToken(user, app);
+    await AuditService.log('LOGIN_SUCCESS', user._id, app._id, req, {
+      details: { email: normalizedEmail, method: 'email', mfaPending: true },
+      status: 'PENDING'
+    });
+    return res.status(200).json({
+      mfaRequired: true,
+      mfaPendingToken,
+      message: 'MFA verification required'
+    });
+  }
 
-  const appO = await appBuilder.findById(app._id);
-  appO.usage.totalLogins += 1;
-  await appO.save();
-
-  const accessToken = signAccessToken(user, app);
-  const { rawToken: refreshToken } = await createRefreshToken({
-    endUser: user,
-    app,
-    ipAddress: req.ip,
-    userAgent: req.headers['user-agent']
-  });
-
-  await user.save();
-
-  await AuditService.log('LOGIN_SUCCESS', user._id, app._id, req, {
-    details: { email: normalizedEmail, method: 'email' }
-  });
-
-  res.status(200).json({
-    message: 'Login successful',
-    accessToken,
-    refreshToken,
-    user: {
-      id: user._id,
-      email: user.email
-    }
+  return completeEndUserLogin(req, res, user, app, {
+    email: normalizedEmail,
+    method: 'email'
   });
 };
 
@@ -567,36 +556,23 @@ module.exports.usernameLogin = async (req, res) => {
     });
     throw new ApiError(403, 'ACCOUNT_DISABLED', 'Account is disabled');
   }
-  
-  user.lastLoginAt = new Date();
 
-  const appO = await appBuilder.findById(app._id);
-  appO.usage.totalLogins += 1;
-  await appO.save();
+  if (user.mfaEnabled) {
+    const mfaPendingToken = signMfaPendingToken(user, app);
+    await AuditService.log('LOGIN_SUCCESS', user._id, app._id, req, {
+      details: { username: normalizedUsername, method: 'username', mfaPending: true },
+      status: 'PENDING'
+    });
+    return res.status(200).json({
+      mfaRequired: true,
+      mfaPendingToken,
+      message: 'MFA verification required'
+    });
+  }
 
-  const accessToken = signAccessToken(user, app);
-  const { rawToken: refreshToken } = await createRefreshToken({
-    endUser: user,
-    app,
-    ipAddress: req.ip,
-    userAgent: req.headers['user-agent']
-  });
-  
-  await user.save();
-
-  await AuditService.log('LOGIN_SUCCESS', user._id, app._id, req, {
-    details: { username: normalizedUsername, method: 'username' }
-  });
-
-  res.status(200).json({
-    message: 'Login successful',
-    accessToken,
-    refreshToken,
-    user: {
-      id: user._id,
-      username: user.username,
-      email: user.email
-    }
+  return completeEndUserLogin(req, res, user, app, {
+    username: normalizedUsername,
+    method: 'username'
   });
 };
 

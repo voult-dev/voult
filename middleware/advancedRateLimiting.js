@@ -2,162 +2,225 @@ const rateLimit = require('express-rate-limit');
 const { ipKeyGenerator } = require('express-rate-limit');
 const RedisStore = require('rate-limit-redis');
 const redis = require('redis');
+const { FailoverRateLimitStore } = require('./failoverRateLimitStore');
 
-// Create Redis client with error handling
-const redisClient = redis.createClient({
-  host: process.env.REDIS_HOST || 'localhost',
-  port: process.env.REDIS_PORT || 6379,
-  password: process.env.REDIS_PASSWORD || null,
-  // Enable auto retry for resilience
-  retryStrategy: (times) => {
-    // Retry after increasing delays up to a max of 10 seconds
-    return Math.min(times * 50, 10000);
+// Redis is opt-in: only connect when REDIS_URL is set or REDIS_ENABLED=true
+const REDIS_ENABLED =
+  process.env.REDIS_ENABLED === 'true'
+  || Boolean((process.env.REDIS_URL || '').trim());
+
+let redisClient = null;
+let redisHealthy = false;
+let redisFallbackLogged = false;
+let redisAbandoned = false;
+let redisErrorLogged = false;
+const storeStatuses = [];
+
+function buildRedisUrl() {
+  if (process.env.REDIS_URL) {
+    return process.env.REDIS_URL;
   }
-});
 
-// Handle Redis connection events
-redisClient.on('error', (err) => {
-  console.error('Redis connection error:', err);
-  // We'll fall back to memory store if Redis fails
-});
+  const host = process.env.REDIS_HOST || 'localhost';
+  const port = process.env.REDIS_PORT || 6379;
+  return `redis://${host}:${port}`;
+}
 
-redisClient.on('connect', () => {
-  console.log('Connected to Redis for rate limiting');
-});
+function logFallback(err) {
+  if (!redisFallbackLogged) {
+    console.warn('[RATE LIMIT] Redis unavailable, using in-memory store:', err?.message || err);
+    redisFallbackLogged = true;
+  }
+  redisHealthy = false;
+}
 
-redisClient.on('ready', () => {
-  console.log('Redis ready for rate limiting');
-});
+function abandonRedis(client, reason) {
+  if (redisAbandoned) {
+    return;
+  }
 
-redisClient.on('reconnecting', () => {
-  console.log('Reconnecting to Redis for rate limiting...');
-});
+  redisAbandoned = true;
+  redisHealthy = false;
+  logFallback(reason);
 
-// Helper function to check if Redis is available
-const isRedisAvailable = () => {
-  return redisClient.isOpen && redisClient.isReady;
-};
+  if (client?.isOpen) {
+    client.disconnect().catch(() => {});
+  }
+}
 
-// Fallback to memory store if Redis is not available
-const getStore = () => {
-  if (isRedisAvailable()) {
-    return new RedisStore({
-      client: redisClient,
-      prefix: 'rate_limit:' // Prefix for all rate limit keys in Redis
+function createRedisClient() {
+  if (!REDIS_ENABLED) {
+    return null;
+  }
+
+  const client = redis.createClient({
+    url: buildRedisUrl(),
+    password: process.env.REDIS_PASSWORD || undefined,
+    socket: {
+      connectTimeout: 3000,
+      reconnectStrategy: (retries) => {
+        if (retries > 2) {
+          abandonRedis(client, 'giving up after repeated connection failures');
+          return false;
+        }
+        return Math.min(retries * 200, 1000);
+      }
+    }
+  });
+
+  client.on('error', (err) => {
+    redisHealthy = false;
+
+    if (!redisErrorLogged) {
+      redisErrorLogged = true;
+      console.error('[RATE LIMIT] Redis error:', err.message || 'connection failed');
+    }
+  });
+
+  client.on('ready', () => {
+    redisHealthy = true;
+    redisAbandoned = false;
+    redisErrorLogged = false;
+    redisFallbackLogged = false;
+    console.log('[RATE LIMIT] Redis ready');
+  });
+
+  client.connect().catch((err) => {
+    abandonRedis(client, err);
+  });
+
+  return client;
+}
+
+if (REDIS_ENABLED) {
+  redisClient = createRedisClient();
+}
+
+function createFailoverStore() {
+  const store = new FailoverRateLimitStore(
+    () => {
+      if (!redisClient || !redisHealthy) {
+        throw new Error('Redis is not available');
+      }
+
+      return new RedisStore({
+        sendCommand: (...args) => redisClient.sendCommand(args),
+        prefix: 'rate_limit:'
+      });
+    },
+    logFallback
+  );
+
+  storeStatuses.push(store);
+  return store;
+}
+
+function createLimiter(options) {
+  return rateLimit({
+    ...options,
+    store: createFailoverStore()
+  });
+}
+
+const createEmailBasedLimiter = (windowMs, max) => createLimiter({
+  windowMs,
+  max,
+  message: { error: 'Too many attempts for this email. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    const email = req.body?.email || req.body?.username || '';
+    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+    return normalizedEmail ? `email_${normalizedEmail}` : `ip_${ipKeyGenerator(req)}`;
+  },
+  skip: (req) => {
+    const trustedIps = (process.env.TRUSTED_IPS || '').split(',').filter(Boolean);
+    return trustedIps.includes(req.ip);
+  },
+  handler: (req, res) => {
+    console.warn('[RATE LIMIT] Email-based limit exceeded', {
+      ip: req.ip,
+      email: req.body?.email || req.body?.username,
+      path: req.path
     });
+    res.status(429).json({ error: 'Too many attempts for this email. Please try again later.' });
   }
-  // Return undefined to use memory store (default behavior of rate-limit)
-  return undefined;
-};
+});
 
-// Per-user rate limiting (uses user ID if available, falls back to IP)
-const createPerUserLimiter = (windowMs, max, message) => {
-  return rateLimit({
-    store: getStore(),
-    windowMs,
-    max,
-    message: { error: message },
-    standardHeaders: true, // Return rate limit info in `RateLimit-*` headers
-    legacyHeaders: false,  // Disable the `X-RateLimit-*` headers
-    keyGenerator: (req) => {
-      // Use user ID if available (from authentication), otherwise fall back to IP
-      return (req.user && req.user._id)
+const createIpBasedLimiter = (windowMs, max) => createLimiter({
+  windowMs,
+  max,
+  message: { error: 'Too many requests from this IP. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => `ip_${ipKeyGenerator(req)}`,
+  skip: (req) => {
+    const trustedIps = (process.env.TRUSTED_IPS || '').split(',').filter(Boolean);
+    return trustedIps.includes(req.ip);
+  },
+  handler: (req, res) => {
+    console.warn('[RATE LIMIT] IP-based limit exceeded', {
+      ip: req.ip,
+      path: req.path
+    });
+    res.status(429).json({ error: 'Too many requests from this IP. Please try again later.' });
+  }
+});
+
+const createPerUserLimiter = (windowMs, max, message) => createLimiter({
+  windowMs,
+  max,
+  message: { error: message },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => (
+    req.endUser?._id
+      ? `user_${req.endUser._id}`
+      : req.user?._id
         ? `user_${req.user._id}`
-        : `ip_${ipKeyGenerator(req)}`;
-    },
-    skip: (req) => {
-      // Skip rate limiting for trusted IPs (if configured)
-      const trustedIps = (process.env.TRUSTED_IPS || '').split(',').filter(Boolean);
-      return trustedIps.includes(req.ip);
-    },
-    handler: (req, res) => {
-      // Log rate limit violation for security monitoring
-      console.warn(`[RATE LIMIT] Per-user limit exceeded for key: ${req.key}`, {
-        ip: req.ip,
-        userId: req.user ? req.user._id : null,
-        path: req.path,
-        method: req.method
-      });
-      
-      res.status(429).json({ 
-        error: message,
-        // Optional: include retry-after header value in response body for client handling
-        // Note: The standardHeaders option already adds Retry-After header
-      });
-    }
-  });
-};
+        : `ip_${ipKeyGenerator(req)}`
+  ),
+  skip: (req) => {
+    const trustedIps = (process.env.TRUSTED_IPS || '').split(',').filter(Boolean);
+    return trustedIps.includes(req.ip);
+  },
+  handler: (req, res) => {
+    console.warn('[RATE LIMIT] Per-user limit exceeded', {
+      ip: req.ip,
+      userId: req.endUser?._id || req.user?._id || null,
+      path: req.path
+    });
+    res.status(429).json({ error: message });
+  }
+});
 
-// Per-email rate limiting (for login, password reset, etc. - uses email from request body)
-const emailBasedLimiter = (windowMs, max) => {
-  return rateLimit({
-    store: getStore(),
-    windowMs,
-    max,
-    message: { error: 'Too many attempts for this email. Please try again later.' },
-    standardHeaders: true,
-    legacyHeaders: false,
-    keyGenerator: (req) => {
-      // Extract email from request body (common in auth endpoints)
-      const email = req.body?.email || req.body?.username || '';
-      // Normalize email to lowercase for consistent keying
-      const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
-      // If no email found, fall back to IP to prevent bypass
-      return normalizedEmail ? `email_${normalizedEmail}` : `ip_${ipKeyGenerator(req)}`;
-    },
-    skip: (req) => {
-      // Skip rate limiting for trusted IPs
-      const trustedIps = (process.env.TRUSTED_IPS || '').split(',').filter(Boolean);
-      return trustedIps.includes(req.ip);
-    },
-    handler: (req, res) => {
-      console.warn(`[RATE LIMIT] Email-based limit exceeded`, {
-        ip: req.ip,
-        email: req.body?.email || req.body?.username,
-        path: req.path,
-        method: req.method
-      });
-      
-      res.status(429).json({ 
-        error: 'Too many attempts for this email. Please try again later.'
-      });
-    }
-  });
-};
+const emailBasedLimiter = createEmailBasedLimiter(15 * 60 * 1000, 5);
+const ipBasedLimiter = createIpBasedLimiter(60 * 60 * 1000, 20);
+const emailLoginLimiter = createEmailBasedLimiter(15 * 60 * 1000, 5);
+const ipAuthLimiter = createIpBasedLimiter(60 * 60 * 1000, 10);
+const mfaVerifyLimiter = createEmailBasedLimiter(15 * 60 * 1000, 10);
 
-// Per-IP rate limiting (general purpose)
-const ipBasedLimiter = (windowMs, max) => {
-  return rateLimit({
-    store: getStore(),
-    windowMs,
-    max,
-    message: { error: 'Too many requests from this IP. Please try again later.' },
-    standardHeaders: true,
-    legacyHeaders: false,
-    keyGenerator: (req) => `ip_${ipKeyGenerator(req)}`,
-    skip: (req) => {
-      // Skip rate limiting for trusted IPs
-      const trustedIps = (process.env.TRUSTED_IPS || '').split(',').filter(Boolean);
-      return trustedIps.includes(req.ip);
-    },
-    handler: (req, res) => {
-      console.warn(`[RATE LIMIT] IP-based limit exceeded`, {
-        ip: req.ip,
-        path: req.path,
-        method: req.method
-      });
-      
-      res.status(429).json({ 
-        error: 'Too many requests from this IP. Please try again later.'
-      });
-    }
-  });
-};
+function getRedisStatus() {
+  return {
+    enabled: REDIS_ENABLED,
+    healthy: redisHealthy,
+    abandoned: redisAbandoned,
+    connected: Boolean(redisClient?.isOpen),
+    ready: Boolean(redisClient?.isReady),
+    stores: storeStatuses.map((store) => store.getStatus())
+  };
+}
 
-// Export the limiter functions and Redis client for potential external use
 module.exports = {
   createPerUserLimiter,
+  createEmailBasedLimiter,
+  createIpBasedLimiter,
   emailBasedLimiter,
   ipBasedLimiter,
-  redisClient
+  emailLoginLimiter,
+  ipAuthLimiter,
+  mfaVerifyLimiter,
+  redisClient,
+  getRedisStatus,
+  FailoverRateLimitStore
 };

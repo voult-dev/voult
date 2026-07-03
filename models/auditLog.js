@@ -20,7 +20,10 @@ const AuditLogSchema = new Schema(
                 'OAUTH_UNLINK',
                 'TOKEN_REVOKED',
                 'SESSION_CREATED',
-                'SESSION_REVOKED'
+                'SESSION_REVOKED',
+                'MFA_ENABLED',
+                'MFA_DISABLED',
+                'MFA_VERIFY_FAILURE'
             ],
             required: true
         },

@@ -112,6 +112,47 @@ const EndUserSchema = new Schema(
     lockUntil: {
       type: Date,
       default: null
+    },
+
+    mfaEnabled: {
+      type: Boolean,
+      default: false
+    },
+
+    mfaSecret: {
+      type: String,
+      select: false
+    },
+
+    mfaBackupCodes: {
+      type: [String],
+      select: false,
+      default: []
+    },
+
+    mfaEnabledAt: Date,
+
+    mfaPendingSecret: {
+      type: String,
+      select: false
+    },
+
+    mfaPendingBackupCodes: {
+      type: [String],
+      select: false,
+      default: []
+    },
+
+    mfaPendingExpires: Date,
+
+    failedMfaAttempts: {
+      type: Number,
+      default: 0
+    },
+
+    mfaLockUntil: {
+      type: Date,
+      default: null
     }
 
   },

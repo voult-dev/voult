@@ -3,7 +3,7 @@ const router = express.Router();
 
 const { apiLimiter } = require('../../middleware/rateLimiters');
 
-const {emailBasedLimiter, ipBasedLimiter, createPerUserLimiter} = require('../../middleware/advancedRateLimiting');
+const { emailLoginLimiter, ipAuthLimiter, createPerUserLimiter } = require('../../middleware/advancedRateLimiting');
 const verifyClient = require('../../middleware/verifyClient').verifyClient;
 const authController = require('../../controllers/api/auth');
 const requireEndUserAuth = require('../../middleware/requireEndUserAuth');
@@ -22,14 +22,14 @@ router.use(apiLimiter);
 */
 
 // Registration endpoints - IP-based limiting to prevent mass account creation
-router.post('/register', validate(schemas.registerSchema), verifyClient, validateCallbackUrl, ipBasedLimiter, catchAsync(authController.register));
+router.post('/register', validate(schemas.registerSchema), verifyClient, validateCallbackUrl, ipAuthLimiter, catchAsync(authController.register));
 
-router.post('/username-register', validate(schemas.usernameRegisterSchema), verifyClient, validateCallbackUrl, ipBasedLimiter, catchAsync(authController.usernameRegister));
+router.post('/username-register', validate(schemas.usernameRegisterSchema), verifyClient, validateCallbackUrl, ipAuthLimiter, catchAsync(authController.usernameRegister));
 
 // Login endpoints - Email-based limiting to prevent brute force on specific accounts
-router.post('/email-login', validate(schemas.loginSchema), verifyClient, emailBasedLimiter, validateCallbackUrl, catchAsync(authController.emailLogin));  
+router.post('/email-login', validate(schemas.loginSchema), verifyClient, emailLoginLimiter, validateCallbackUrl, catchAsync(authController.emailLogin));  
 
-router.post('/username-login', validate(schemas.usernameLoginSchema), verifyClient, emailBasedLimiter, validateCallbackUrl, catchAsync(authController.usernameLogin));
+router.post('/username-login', validate(schemas.usernameLoginSchema), verifyClient, emailLoginLimiter, validateCallbackUrl, catchAsync(authController.usernameLogin));
 
 // Logout endpoint - Per-user limiting after authentication
 router.post('/logout', verifyClient, requireEndUserAuth, requireActiveEndUser, createPerUserLimiter(15 * 60 * 1000, 10, 'Too many logout requests. Please try again later.'), validateCallbackUrl, catchAsync(authController.logout));

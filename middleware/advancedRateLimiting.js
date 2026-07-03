@@ -1,4 +1,5 @@
 const rateLimit = require('express-rate-limit');
+const { ipKeyGenerator } = require('express-rate-limit');
 const RedisStore = require('rate-limit-redis');
 const redis = require('redis');
 
@@ -60,7 +61,9 @@ const createPerUserLimiter = (windowMs, max, message) => {
     legacyHeaders: false,  // Disable the `X-RateLimit-*` headers
     keyGenerator: (req) => {
       // Use user ID if available (from authentication), otherwise fall back to IP
-      return (req.user && req.user._id) ? `user_${req.user._id}` : `ip_${req.ip}`;
+      return (req.user && req.user._id)
+        ? `user_${req.user._id}`
+        : `ip_${ipKeyGenerator(req)}`;
     },
     skip: (req) => {
       // Skip rate limiting for trusted IPs (if configured)
@@ -100,7 +103,7 @@ const emailBasedLimiter = (windowMs, max) => {
       // Normalize email to lowercase for consistent keying
       const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
       // If no email found, fall back to IP to prevent bypass
-      return normalizedEmail ? `email_${normalizedEmail}` : `ip_${req.ip}`;
+      return normalizedEmail ? `email_${normalizedEmail}` : `ip_${ipKeyGenerator(req)}`;
     },
     skip: (req) => {
       // Skip rate limiting for trusted IPs
@@ -131,7 +134,7 @@ const ipBasedLimiter = (windowMs, max) => {
     message: { error: 'Too many requests from this IP. Please try again later.' },
     standardHeaders: true,
     legacyHeaders: false,
-    keyGenerator: (req) => `ip_${req.ip}`,
+    keyGenerator: (req) => `ip_${ipKeyGenerator(req)}`,
     skip: (req) => {
       // Skip rate limiting for trusted IPs
       const trustedIps = (process.env.TRUSTED_IPS || '').split(',').filter(Boolean);

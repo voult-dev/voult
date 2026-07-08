@@ -574,13 +574,13 @@ Upon completion of all security hardening measures outlined in the **SECURITY_HA
 
 **IP Allowlisting:**
 
-- [ ] Create IP allowlist model
-- [ ] Implement allowlist checking
-- [ ] Create allowlist management endpoints
-- [ ] Create notification system for new IPs
-- [ ] Test allowlist enforcement
-- [ ] Create bypass for admins
-- [ ] Document IP allowlisting
+- [x] Create IP allowlist model
+- [x] Implement allowlist checking
+- [x] Create allowlist management endpoints
+- [x] Create notification system for new IPs
+- [x] Test allowlist enforcement
+- [x] Create bypass for admins
+- [x] Document IP allowlisting
 
 **Session Management Dashboard:**
 
@@ -606,7 +606,7 @@ Upon completion of all security hardening measures outlined in the **SECURITY_HA
 
 - [ ] Test all advanced features
 - [x] Create WebAuthn compatibility tests
-- [ ] Test IP allowlist scenarios
+- [x] Test IP allowlist scenarios
 - [ ] Test incident response automation
 - [ ] Security penetration testing round 2
 - [ ] Performance testing at scale

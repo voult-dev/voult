@@ -229,3 +229,28 @@ module.exports.welcomeOAuthUser = async ({
     `
   });
 };
+
+module.exports.sendIpAllowlistAlert = async (to, developerName, appName, details) => {
+  const status = details.blocked ? 'blocked' : 'observed';
+  const subject = `[${appName}] New IP ${status}: ${details.ipAddress}`;
+
+  return transporter.sendMail({
+    from: '"voult.dev Security" <olabodeoluwapelumi838@gmail.com>',
+    to,
+    subject,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px;">
+        <h2>IP Allowlist Alert</h2>
+        <p>Hi ${developerName || 'there'},</p>
+        <p>A request from an IP address not on your allowlist was <strong>${status}</strong> for <strong>${appName}</strong>.</p>
+        <ul>
+          <li><strong>IP:</strong> ${details.ipAddress}</li>
+          <li><strong>Path:</strong> ${details.path || 'N/A'}</li>
+          <li><strong>Attempts:</strong> ${details.attemptCount || 1}</li>
+        </ul>
+        <p>Review alerts in your Voult dashboard and add the IP to your allowlist if this traffic is expected.</p>
+        <p style="color:#6b7280;font-size:13px;">— voult.dev Security</p>
+      </div>
+    `
+  });
+};

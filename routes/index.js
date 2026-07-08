@@ -21,6 +21,7 @@ const apiMicorsoft  = require('./api/microsoft');
 const oauthLinking = require('./api/oauthLinking');
 const oauth = require('./api/oauth');
 const auditLogRoutes = require('./api/auditLog');
+const ipAllowlistRoutes = require('./api/ipAllowlist');
 const userOAuthAccounts = require('./api/userOAuthAccounts');
 const magicLinkRoutes = require('./api/magicLink');
 
@@ -39,6 +40,7 @@ router.use('/api/auth', apiAuthRoutes);
 router.use('/api/auth/mfa', mfaRoutes);
 router.use('/api/auth/webauthn', webauthnRoutes);
 router.use('/api/audit-logs', auditLogRoutes);
+router.use('/api/ip-allowlist', ipAllowlistRoutes);
 router.use('/api/sessions', sessionRoutes);
 router.use('/api/user', apiUserRoutes);
 router.use('/api/auth/google', apiGoogle);

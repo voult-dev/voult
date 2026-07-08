@@ -40,6 +40,16 @@ const AppSchema = new mongoose.Schema({
     totalLogins: { type: Number, default: 0 }
   },
 
+  ipAllowlistEnabled: {
+    type: Boolean,
+    default: false
+  },
+
+  ipAllowlistNotifyNewIps: {
+    type: Boolean,
+    default: true
+  },
+
 googleOAuth: {
   enabled: {
     type: Boolean,

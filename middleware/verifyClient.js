@@ -1,6 +1,7 @@
 const App = require('../models/app')
 const { SafeQueryBuilder } = require('./queryValidation');
 const { ApiError } = require('../utils/apiError');
+const enforceIpAllowlist = require('./enforceIpAllowlist');
 
 const appBuilder = new SafeQueryBuilder(App);
 
@@ -51,7 +52,7 @@ module.exports.verifyClient = async (req, res, next) => {
 
   req.appClient = app;
   console.log('[VERIFY CLIENT] SUCCESS: Verified app:', app.clientId);
-  next();
+  return enforceIpAllowlist(req, res, next);
 };
 
 module.exports.verifyClientIdOnly = async (req, res, next) => {

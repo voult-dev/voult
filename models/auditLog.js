@@ -29,7 +29,12 @@ const AuditLogSchema = new Schema(
                 'BACKUP_CODES_REGENERATED',
                 'WEBAUTHN_REGISTERED',
                 'WEBAUTHN_LOGIN_FAILURE',
-                'WEBAUTHN_CREDENTIAL_REMOVED'
+                'WEBAUTHN_CREDENTIAL_REMOVED',
+                'IP_ALLOWLIST_BLOCKED',
+                'IP_ALLOWLIST_NEW_IP',
+                'IP_ALLOWLIST_ENTRY_ADDED',
+                'IP_ALLOWLIST_ENTRY_REMOVED',
+                'IP_ALLOWLIST_SETTINGS_UPDATED'
             ],
             required: true
         },

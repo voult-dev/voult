@@ -53,6 +53,7 @@ const flash = require('connect-flash');
 const passport = require('../config/passport');
 
 // const { csrfProtection } = require('../middleware/csrfProtection');
+const { csrfProtection } = require('../middleware/csrfProtection');
 const securityHeaders = require('../middleware/securityHeaders');
 
 const sessionConfig = require('../config/session');
@@ -128,7 +129,13 @@ app.use(express.urlencoded({
 
 app.use(securityHeaders);
 
-// app.use(csrfProtection);
+// CSRF protection for developer web portal only (API routes use client credentials)
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api')) {
+    return next();
+  }
+  return csrfProtection(req, res, next);
+});
 
 app.use((req, res, next) => {
   if (req.path.startsWith('/api')) {

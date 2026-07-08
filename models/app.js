@@ -143,27 +143,17 @@ AppSchema.methods.generateClientSecret = function () {
 };
 
 AppSchema.methods.verifyClientSecret = async function (clientSecret) {
-  console.log('verifyClientSecret called with:', {
-    clientSecret,
-    hasHash: !!this.clientSecretHash
-  });
-
-  // Check if clientSecretHash exists
   if (!this.clientSecretHash) {
-    console.error('Client secret hash not found for app:', this.clientId);
     return false;
   }
 
-  // Check if clientSecret is provided
   if (!clientSecret) {
-    console.error('Client secret not provided');
     return false;
   }
 
   try {
     return await bcrypt.compare(clientSecret, this.clientSecretHash);
-  } catch (error) {
-    console.error('Error comparing client secret:', error.message);
+  } catch {
     return false;
   }
 };

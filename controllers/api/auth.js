@@ -1,7 +1,8 @@
 const EndUser = require('../../models/endUser');
 const { SafeQueryBuilder } = require('../../middleware/queryValidation');
 
-const { signEndUserToken, signMfaPendingToken } = require('../../utils/jwt');
+const { signAccessToken, signMfaPendingToken } = require('../../utils/jwt');
+const { createRefreshToken } = require('../../utils/refreshToken');
 const { ApiError } = require('../../utils/apiError');
 
 const AuditService = require('../../services/auditService');
@@ -12,6 +13,18 @@ const RefreshToken = require('../../models/refreshToken');
 const endUserBuilder = new SafeQueryBuilder(EndUser);
 const appBuilder = new SafeQueryBuilder(App);
 const refreshTokenBuilder = new SafeQueryBuilder(RefreshToken);
+
+async function issueRegistrationTokens(req, user, app) {
+  const accessToken = signAccessToken(user, app);
+  const { rawToken: refreshToken } = await createRefreshToken({
+    endUser: user,
+    app,
+    ipAddress: req.ip,
+    userAgent: req.headers['user-agent']
+  });
+
+  return { accessToken, refreshToken };
+}
 
 // EMAILS
 const {verifyEndUsers} = require('../../services/emailService');
@@ -150,9 +163,9 @@ module.exports.register = async (req, res) => {
     }
     const verifyUrl = `${baseUrl}/api/user/verify-email?token=${verifyToken}&appId=${app._id}`;
 
-    const token = signEndUserToken(user, app);
-
     await user.save();
+
+    const { accessToken, refreshToken } = await issueRegistrationTokens(req, user, app);
 
     // Send verification email (non-blocking - don't fail registration if email fails)
     verifyEndUsers(
@@ -170,8 +183,10 @@ module.exports.register = async (req, res) => {
 
     console.log('[AUTH] register() completed successfully for:', sanitizedEmail);
     res.status(201).json({
-      message: 'User registered successfully',
-      token,
+      message: 'User registered successfully. Please verify your email before logging in.',
+      accessToken,
+      refreshToken,
+      emailVerificationRequired: true,
       user: {
         id: user._id,
         email: user.email,
@@ -308,9 +323,9 @@ module.exports.usernameRegister = async (req, res) => {
   }
   const verifyUrl = `${baseUrl}/api/user/verify-email?token=${verifyToken}&appId=${app._id}`;
 
-  const token = signEndUserToken(user, app);
-
   await user.save();
+
+  const { accessToken, refreshToken } = await issueRegistrationTokens(req, user, app);
 
   // Send verification email if email was provided (non-blocking)
   if (sanitizedEmail) {
@@ -328,8 +343,10 @@ module.exports.usernameRegister = async (req, res) => {
   });
 
   res.status(201).json({
-    message: 'User registered successfully',
-    token,
+    message: 'User registered successfully. Please verify your email before logging in.',
+    accessToken,
+    refreshToken,
+    emailVerificationRequired: true,
     user: {
       id: user._id,
       username: user.username,

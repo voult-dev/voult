@@ -1,6 +1,9 @@
 // utils/refreshToken.js
 const crypto = require('crypto');
 const RefreshToken = require('../models/refreshToken');
+const { SafeQueryBuilder } = require('../middleware/queryValidation');
+
+const refreshTokenBuilder = new SafeQueryBuilder(RefreshToken);
 
 module.exports.createRefreshToken = async ({
   endUser,
@@ -27,4 +30,17 @@ module.exports.createRefreshToken = async ({
     rawToken,
     refreshToken,
   };
+};
+
+module.exports.revokeAllRefreshTokens = async ({ endUserId, appId }) => {
+  return refreshTokenBuilder.updateMany(
+    {
+      endUser: endUserId,
+      app: appId,
+      revokedAt: null
+    },
+    {
+      revokedAt: new Date()
+    }
+  );
 };

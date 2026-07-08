@@ -3,17 +3,18 @@ const router = express.Router();
 
 const controller = require('../../controllers/api/auditLog');
 const { verifyClient } = require('../../middleware/verifyClient');
+const requireDeveloperAppOwner = require('../../middleware/requireDeveloperAppOwner');
 const requireEndUserAuth = require('../../middleware/requireEndUserAuth');
 const catchAsync = require('../../utils/catchAsync');
 
-router.get('/policy', verifyClient, catchAsync(controller.getRetentionPolicy));
+router.get('/policy', requireDeveloperAppOwner, catchAsync(controller.getRetentionPolicy));
 
-router.get('/summary', verifyClient, catchAsync(controller.getAppSummary));
+router.get('/summary', requireDeveloperAppOwner, catchAsync(controller.getAppSummary));
 
-router.get('/high-risk', verifyClient, catchAsync(controller.listHighRiskEvents));
+router.get('/high-risk', requireDeveloperAppOwner, catchAsync(controller.listHighRiskEvents));
 
 router.get('/me', verifyClient, requireEndUserAuth, catchAsync(controller.listMyLogs));
 
-router.get('/', verifyClient, catchAsync(controller.listAppLogs));
+router.get('/', requireDeveloperAppOwner, catchAsync(controller.listAppLogs));
 
 module.exports = router;

@@ -15,6 +15,7 @@ const { PASSWORD_RULES_MESSAGE } = require('../../constants/passwordRules');
 
 const endUserBuilder = new SafeQueryBuilder(EndUser);
 const AuditService = require('../../services/auditService');
+const { revokeAllRefreshTokens } = require('../../utils/refreshToken');
 
 // verify Email.
 module.exports.verifyEmail = async (req, res) => {
@@ -225,11 +226,17 @@ module.exports.verifyEmail = async (req, res) => {
     user.isActive = false;
     user.disabledAt = new Date();
     user.disabledReason = 'User requested';
-  
+    user.tokenVersion += 1;
+
+    await revokeAllRefreshTokens({
+      endUserId: user._id,
+      appId: user.app
+    });
+
     await user.save();
 
     await AuditService.log('ACCOUNT_DISABLED', user._id, user.app, req, {
-      details: { reason: 'USER_REQUESTED' }
+      details: { reason: 'USER_REQUESTED', tokenVersion: user.tokenVersion }
     });
   
     res.status(200).json({

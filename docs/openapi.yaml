@@ -1,7 +1,18 @@
 openapi: 3.0.3
 info:
   title: voult.dev API
-  description: Authentication-as-a-Service API for developers
+  description: |
+    Authentication-as-a-Service API for developers.
+
+    **Client authentication:** All server-to-server API calls require two headers:
+    - `X-Client-Id` — your app's public client ID (e.g. `app_abc123`)
+    - `X-Client-Secret` — your app's secret (never expose in browsers or mobile apps)
+
+    **Token responses:** Register and login both return `{ accessToken, refreshToken }`.
+    Registration also returns `emailVerificationRequired: true`; login is blocked until email is verified.
+
+    **Deprecated:** Legacy OAuth routes at `/api/{provider}/authorize` and `/api/{provider}/callback`
+    are deprecated. Use `/api/auth/{provider}/*` instead (sunset 2026-12-31).
   version: 1.0.0
 
 servers:
@@ -14,16 +25,18 @@ tags:
 
 components:
   securitySchemes:
-    ClientAuth:
+    ClientSecret:
       type: apiKey
       in: header
-      name: Authorization
+      name: X-Client-Secret
       description: |
-        Bearer <CLIENT_SECRET>
+        Your app's client secret. Required on all server-to-server API calls.
+        Never expose this value in browser or mobile client code.
     ClientId:
       type: apiKey
       in: header
       name: X-Client-Id
+      description: Your app's public client ID (e.g. app_abc123).
     EndUserAuth:
       type: http
       scheme: bearer
@@ -80,6 +93,23 @@ components:
           type: string
           example: "Account re-enabled successfully. Please log in again."
 
+    TokenPairResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        accessToken:
+          type: string
+          description: Short-lived JWT access token (15m in production)
+        refreshToken:
+          type: string
+          description: Long-lived refresh token for session rotation
+        emailVerificationRequired:
+          type: boolean
+          description: Present on register; true until email is verified
+        user:
+          $ref: '#/components/schemas/EndUser'
+
 paths:
 
   /api/auth/register:
@@ -88,7 +118,7 @@ paths:
       summary: Register an end user
       description: Registers a new end user for the application. An email verification link will be sent to the provided email address. The user must verify their email before logging in.
       security:
-        - ClientAuth: []
+        - ClientSecret: []
           ClientId: []
       requestBody:
         required: true
@@ -112,16 +142,13 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: "User registered successfully"
-                  token:
-                    type: string
-                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                  user:
-                    $ref: '#/components/schemas/EndUser'
+                allOf:
+                  - $ref: '#/components/schemas/TokenPairResponse'
+                  - type: object
+                    properties:
+                      emailVerificationRequired:
+                        type: boolean
+                        example: true
         409:
           description: User with this email already exists
           content:
@@ -135,13 +162,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /api/auth/login:
+  /api/auth/email-login:
     post:
       tags: [End Users]
-      summary: Login an end user
-      description: Authenticates an end user with email and password. The user must have verified their email address before logging in.
+      summary: Login an end user (email)
+      description: Authenticates an end user with email and password. The user must have verified their email address before logging in. Returns accessToken and refreshToken on success, or mfaRequired + mfaPendingToken when MFA is enabled.
       security:
-        - ClientAuth: []
+        - ClientSecret: []
           ClientId: []
       requestBody:
         required: true
@@ -164,16 +191,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: "Login successful"
-                  token:
-                    type: string
-                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                  user:
-                    $ref: '#/components/schemas/EndUser'
+                $ref: '#/components/schemas/TokenPairResponse'
         403:
           description: Email not verified. Please verify your email before logging in.
           content:
@@ -251,7 +269,7 @@ paths:
       summary: Request password reset
       description: Initiates a password reset process by sending a reset link to the user's email address. The user must have a verified email.
       security:
-        - ClientAuth: []
+        - ClientSecret: []
           ClientId: []
       requestBody:
         required: true
@@ -399,3 +417,27 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+
+  /api/{provider}/authorize:
+    post:
+      deprecated: true
+      tags: [Client Auth]
+      summary: "[DEPRECATED] Generate legacy OAuth authorization URL"
+      description: |
+        **Deprecated.** Use `/api/auth/{provider}/login` or `/api/auth/{provider}/register` instead.
+        Sunset date: 2026-12-31.
+      responses:
+        200:
+          description: Deprecated endpoint still functional; migrate before sunset
+
+  /api/{provider}/callback:
+    get:
+      deprecated: true
+      tags: [Client Auth]
+      summary: "[DEPRECATED] Legacy OAuth callback"
+      description: |
+        **Deprecated.** Use `/api/auth/{provider}/callback` instead.
+        Sunset date: 2026-12-31.
+      responses:
+        200:
+          description: Deprecated endpoint still functional; migrate before sunset

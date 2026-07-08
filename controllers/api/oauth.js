@@ -13,6 +13,18 @@ const oAuthAccountBuilder = new SafeQueryBuilder(OAuthAccount);
 const userBuilder = new SafeQueryBuilder(User);
 const appBuilder = new SafeQueryBuilder(App);
 
+const { LEGACY_OAUTH_SUNSET } = require('../../middleware/deprecationNotice');
+
+const DEPRECATION_NOTICE = {
+  deprecated: true,
+  migrationGuide: 'Use /api/auth/{provider}/* instead of /api/{provider}/*',
+  sunsetDate: LEGACY_OAUTH_SUNSET
+};
+
+function withDeprecation(payload) {
+  return { ...payload, _deprecation: DEPRECATION_NOTICE };
+}
+
 function decodeState(state) {
   return JSON.parse(
     Buffer.from(state, 'base64url').toString()
@@ -71,12 +83,12 @@ exports.generateAuthUrl = async (req, res) => {
     // Generate the authorization URL
     const authUrl = await generateProviderAuthUrl(provider, stateObj, appId);
 
-    return res.json({ 
+    return res.json(withDeprecation({
       authUrl,
       provider,
       intent,
-      expiresInSeconds: 600 // Auth URLs typically expire in 10 minutes
-    });
+      expiresInSeconds: 600
+    }));
 
   } catch (error) {
     console.error('Error generating auth URL:', error);
@@ -190,7 +202,7 @@ exports.handleCallback = async (req, res) => {
         { $addToSet: { linkedProviders: provider } }
       );
 
-      return res.json({ message: 'ACCOUNT_LINKED_SUCCESSFULLY' });
+      return res.json(withDeprecation({ message: 'ACCOUNT_LINKED_SUCCESSFULLY' }));
     }
 
     // ===============================
@@ -206,7 +218,7 @@ exports.handleCallback = async (req, res) => {
 
       const token = createToken(user);
 
-      return res.json({ token });
+      return res.json(withDeprecation({ token }));
     }
 
     // ===============================
@@ -252,7 +264,7 @@ exports.handleCallback = async (req, res) => {
 
       const token = createToken(user);
 
-      return res.json({ token });
+      return res.json(withDeprecation({ token }));
     }
 
     return res.status(400).json({ error: 'INVALID_INTENT' });

@@ -591,6 +591,7 @@ Upon completion of all security hardening measures outlined in the **SECURITY_HA
 - [ ] Create unauthorized access alerts
 - [ ] Add IP/device information
 - [ ] Test session management flows
+- [ ] Document session management flows
 
 **Incident Response Automation:**
 

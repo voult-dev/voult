@@ -58,6 +58,14 @@ class MFAService {
     return codes.map((code) => this.hashBackupCode(code));
   }
 
+  static createBackupCodeSet(count = 10) {
+    const plaintextCodes = this.generateBackupCodes(count);
+    return {
+      plaintextCodes,
+      hashedCodes: this.hashBackupCodes(plaintextCodes)
+    };
+  }
+
   static verifyBackupCode(code, hashedCodes = []) {
     const hashedInput = this.hashBackupCode(code);
     return hashedCodes.some((storedHash) => constantTimeCompare(storedHash, hashedInput));

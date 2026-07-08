@@ -26,12 +26,16 @@ module.exports.setupMfa = async (req, res) => {
 
   const secret = MFAService.generateSecret(user.email || user.username, app.name);
   const qrCode = await MFAService.generateQRCode(secret);
-  const backupCodes = MFAService.generateBackupCodes();
+  const { plaintextCodes: backupCodes, hashedCodes } = MFAService.createBackupCodeSet();
 
   user.mfaPendingSecret = secret.base32;
-  user.mfaPendingBackupCodes = MFAService.hashBackupCodes(backupCodes);
+  user.mfaPendingBackupCodes = hashedCodes;
   user.mfaPendingExpires = MFAService.getSetupExpiry();
   await user.save();
+
+  await AuditService.log('BACKUP_CODES_GENERATED', user._id, app._id, req, {
+    details: { stage: 'MFA_SETUP', count: backupCodes.length }
+  });
 
   await AuditService.log('MFA_ENABLED', user._id, app._id, req, {
     details: { stage: 'SETUP_STARTED' },
@@ -85,7 +89,7 @@ module.exports.enableMfa = async (req, res) => {
   await user.save();
 
   await AuditService.log('MFA_ENABLED', user._id, req.appClient._id, req, {
-    details: { stage: 'ENABLED' }
+    details: { stage: 'ENABLED', backupCodesCount: user.mfaBackupCodes.length }
   });
 
   res.status(200).json({
@@ -141,6 +145,16 @@ module.exports.verifyMfaLogin = async (req, res) => {
 
     user.mfaBackupCodes = backupResult.remainingCodes;
     usedBackupCode = true;
+
+    await user.save();
+
+    await AuditService.log('BACKUP_CODE_USED', user._id, app._id, req, {
+      details: {
+        stage: 'LOGIN',
+        backupCodesRemaining: backupResult.remainingCodes.length
+      },
+      riskLevel: 'MEDIUM'
+    });
   }
 
   await MFAService.resetFailedMfaAttempts(user);
@@ -216,13 +230,14 @@ module.exports.regenerateBackupCodes = async (req, res) => {
     throw new ApiError(401, 'INVALID_MFA_TOKEN', 'Invalid MFA token');
   }
 
-  const backupCodes = MFAService.generateBackupCodes();
-  user.mfaBackupCodes = MFAService.hashBackupCodes(backupCodes);
+  const { plaintextCodes: backupCodes, hashedCodes } = MFAService.createBackupCodeSet();
+  user.mfaBackupCodes = hashedCodes;
   user.tokenVersion += 1;
   await user.save();
 
-  await AuditService.log('MFA_ENABLED', user._id, req.appClient._id, req, {
-    details: { stage: 'BACKUP_CODES_REGENERATED' }
+  await AuditService.log('BACKUP_CODES_REGENERATED', user._id, req.appClient._id, req, {
+    details: { count: backupCodes.length },
+    riskLevel: 'HIGH'
   });
 
   res.status(200).json({

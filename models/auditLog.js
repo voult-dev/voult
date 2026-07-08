@@ -23,7 +23,10 @@ const AuditLogSchema = new Schema(
                 'SESSION_REVOKED',
                 'MFA_ENABLED',
                 'MFA_DISABLED',
-                'MFA_VERIFY_FAILURE'
+                'MFA_VERIFY_FAILURE',
+                'BACKUP_CODES_GENERATED',
+                'BACKUP_CODE_USED',
+                'BACKUP_CODES_REGENERATED'
             ],
             required: true
         },

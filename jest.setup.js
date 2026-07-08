@@ -2,6 +2,10 @@
 // Mock node-fetch using manual mock
 jest.mock('node-fetch');
 
+if (!process.env.ENDUSER_JWT_SECRET || process.env.ENDUSER_JWT_SECRET.length < 32) {
+  process.env.ENDUSER_JWT_SECRET = 'test-enduser-jwt-secret-32chars!!';
+}
+
 // Mock isomorphic-dompurify to handle ESM compatibility
 jest.mock('isomorphic-dompurify', () => ({
 	default: {

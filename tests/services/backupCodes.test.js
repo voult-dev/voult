@@ -73,3 +73,27 @@ describe('Backup code storage format', () => {
     });
   });
 });
+
+describe('Backup code regeneration semantics', () => {
+  test('new set invalidates all previous hashes', () => {
+    const firstSet = MFAService.createBackupCodeSet(3);
+    const secondSet = MFAService.createBackupCodeSet(3);
+
+    firstSet.plaintextCodes.forEach((code) => {
+      expect(MFAService.verifyBackupCode(code, secondSet.hashedCodes)).toBe(false);
+    });
+
+    secondSet.plaintextCodes.forEach((code) => {
+      expect(MFAService.verifyBackupCode(code, secondSet.hashedCodes)).toBe(true);
+    });
+  });
+
+  test('regenerated set supports one-time consumption independently', () => {
+    const { plaintextCodes, hashedCodes } = MFAService.createBackupCodeSet(2);
+    const firstUse = MFAService.consumeBackupCode(plaintextCodes[0], hashedCodes);
+
+    expect(firstUse.valid).toBe(true);
+    expect(MFAService.consumeBackupCode(plaintextCodes[0], firstUse.remainingCodes).valid).toBe(false);
+    expect(MFAService.consumeBackupCode(plaintextCodes[1], firstUse.remainingCodes).valid).toBe(true);
+  });
+});

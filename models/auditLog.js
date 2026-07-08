@@ -26,7 +26,10 @@ const AuditLogSchema = new Schema(
                 'MFA_VERIFY_FAILURE',
                 'BACKUP_CODES_GENERATED',
                 'BACKUP_CODE_USED',
-                'BACKUP_CODES_REGENERATED'
+                'BACKUP_CODES_REGENERATED',
+                'WEBAUTHN_REGISTERED',
+                'WEBAUTHN_LOGIN_FAILURE',
+                'WEBAUTHN_CREDENTIAL_REMOVED'
             ],
             required: true
         },

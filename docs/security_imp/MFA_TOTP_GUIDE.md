@@ -788,5 +788,6 @@ When porting to a **session-based web app**, you can store pending setup in the 
 
 ## Related documentation
 
+- [WEBAUTHN_GUIDE.md](./WEBAUTHN_GUIDE.md) — Passwordless passkey authentication
 - [SECURITY_HARDENING_GUIDE.md](./SECURITY_HARDENING_GUIDE.md) — Issue #10 (original MFA spec)
 - [PRODUCTION_READINESS_CERTIFICATION.md](./PRODUCTION_READINESS_CERTIFICATION.md) — Phase 3 MFA checklist

@@ -27,7 +27,7 @@ Strong B2B auth platform with a hardened developer portal and consistent API con
 | Register returns tokens before email verification | Low–Med | `emailVerificationRequired: true` flagged; login still blocked until verified |
 | Public Swagger at `/docs` | Low–Med | Full API surface exposed |
 | 7-day JWT expiry in non-production | Low | Dev tokens live too long |
-| Certification doc aspirational items | — | WebAuthn, tamper-proof audit, pen tests not yet done |
+| Certification doc aspirational items | — | tamper-proof audit, pen tests not yet done |
 
 ### Score by surface
 

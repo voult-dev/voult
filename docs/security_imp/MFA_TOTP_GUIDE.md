@@ -1,8 +1,21 @@
 # MFA / TOTP Guide
 
-This document explains how multi-factor authentication (MFA) works in Voult, and how to port the same design to another codebase.
+This document explains how multi-factor authentication (MFA) works in Voult, and how to integrate it when **Voult is your authentication provider** in another codebase.
+
+Most teams using Voult do **not** re-implement TOTP themselves. Voult owns enrollment, verification, backup codes, lockout, and audit logging. Your application calls Voult's API and handles the UI flow.
 
 Voult uses **TOTP** (Time-based One-Time Password) compatible with Google Authenticator, Authy, 1Password, and similar apps. It also supports **one-time backup codes** for account recovery.
+
+---
+
+## Two integration paths
+
+| Path | When to use it |
+|------|----------------|
+| **[Use Voult for MFA](#using-voult-mfa-in-your-application)** (recommended) | Your app authenticates users through Voult's API. You build login/settings UI; Voult handles all MFA logic. |
+| **[Build MFA yourself](#building-mfa-yourself-alternative)** | You are implementing your own auth platform and want to port Voult's internal design. |
+
+If Voult is already your auth layer, skip to [Using Voult MFA in your application](#using-voult-mfa-in-your-application).
 
 ---
 
@@ -13,6 +26,10 @@ MFA is split into two flows:
 1. **Enrollment** — an authenticated user enables MFA on their account.
 2. **Login** — after a successful password check, the user must provide a TOTP code or backup code before receiving access tokens.
 
+If you are integrating an app that uses Voult for authentication, you only interact with these flows through HTTP — see [Using Voult MFA in your application](#using-voult-mfa-in-your-application).
+
+The diagram below shows what happens **inside Voult** when those API calls are made.
+
 The API is **stateless**. Instead of server sessions, Voult uses:
 
 - **Pending setup fields** on the user record during enrollment (`mfaPendingSecret`, etc.)
@@ -21,6 +38,8 @@ The API is **stateless**. Instead of server sessions, Voult uses:
 ---
 
 ## Architecture
+
+Internal Voult flow (your app triggers these endpoints; Voult executes this logic):
 
 ```mermaid
 sequenceDiagram
@@ -51,7 +70,337 @@ sequenceDiagram
 
 ---
 
-## Key files in this codebase
+## Using Voult MFA in your application
+
+When Voult is your auth provider, MFA lives entirely on Voult's side. Your codebase is responsible for:
+
+1. **Calling Voult's auth API** with the correct headers and request bodies
+2. **Handling the two-step login UI** when `mfaRequired: true`
+3. **Storing Voult tokens** (`accessToken`, `refreshToken`) in your app after successful auth
+4. **Building enrollment/settings screens** that proxy to Voult's MFA endpoints
+
+You do **not** need to install `speakeasy`, store TOTP secrets, hash backup codes, or manage lockout logic in your app.
+
+### What Voult handles vs what your app handles
+
+| Responsibility | Voult | Your application |
+|----------------|-------|------------------|
+| TOTP secret generation | ✅ | — |
+| QR code rendering | ✅ | Display the `qrCode` image Voult returns |
+| Backup code hashing & one-time use | ✅ | Prompt user to save codes Voult returns once |
+| MFA verify / lockout / rate limits | ✅ | Show error messages from Voult responses |
+| `mfaPendingToken` JWT | ✅ | Store temporarily between login steps |
+| Login & settings UI | — | ✅ |
+| `X-Client-Secret` | ✅ validates | ✅ keep server-side only |
+| Session after login | — | ✅ store `accessToken` + `refreshToken` |
+
+### Architecture when Voult is your auth provider
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant YourApp as Your App (UI + backend)
+    participant Voult as Voult API
+    participant AuthApp as Authenticator App
+
+    Note over User,Voult: Login with MFA
+    User->>YourApp: email + password
+    YourApp->>Voult: POST /api/auth/email-login
+    Voult-->>YourApp: { mfaRequired, mfaPendingToken }
+    YourApp-->>User: Show TOTP input screen
+    User->>AuthApp: Read 6-digit code
+    AuthApp-->>User: 123456
+    User->>YourApp: Enter TOTP
+    YourApp->>Voult: POST /api/auth/mfa/verify
+    Voult-->>YourApp: { accessToken, refreshToken, user }
+    YourApp-->>User: Logged in
+
+    Note over User,Voult: Enable MFA in settings
+    User->>YourApp: Open security settings
+    YourApp->>Voult: POST /api/auth/mfa/setup (Bearer accessToken)
+    Voult-->>YourApp: { qrCode, backupCodes, secret }
+    YourApp-->>User: Show QR + save backup codes
+    User->>YourApp: Enter TOTP to confirm
+    YourApp->>Voult: POST /api/auth/mfa/enable { token }
+    Voult-->>YourApp: { mfaEnabled: true }
+```
+
+### Required headers on every Voult call
+
+All server-to-server requests need:
+
+```
+X-Client-Id: app_your_client_id
+X-Client-Secret: your_client_secret   ← never expose in browser or mobile app
+Content-Type: application/json
+```
+
+Authenticated end-user requests also need:
+
+```
+Authorization: Bearer <accessToken>
+```
+
+The `X-Client-Secret` must live in your **backend** environment variables. If your frontend calls Voult directly, use a backend proxy (see below) instead of embedding the secret in client code.
+
+### Recommended pattern: backend auth proxy
+
+For web and mobile apps, route auth through your own backend:
+
+```
+[Browser/Mobile]  →  [Your API]  →  [Voult API]
+                      ↑
+              X-Client-Secret stays here
+```
+
+**Why:**
+
+- `X-Client-Secret` never ships to the client
+- You can attach your own session cookies after Voult returns tokens
+- Easier to add logging, redirects, and error normalization
+
+**Example — your backend login route:**
+
+```javascript
+// your-app/routes/auth.js
+app.post('/auth/login', async (req, res) => {
+  const { email, password } = req.body;
+
+  const voultRes = await fetch(`${process.env.VOULT_BASE_URL}/api/auth/email-login`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Client-Id': process.env.VOULT_CLIENT_ID,
+      'X-Client-Secret': process.env.VOULT_CLIENT_SECRET
+    },
+    body: JSON.stringify({ email, password })
+  });
+
+  const data = await voultRes.json();
+
+  if (!voultRes.ok) {
+    return res.status(voultRes.status).json(data);
+  }
+
+  // MFA step required — pass pending token to your frontend
+  if (data.mfaRequired) {
+    return res.json({
+      step: 'mfa',
+      mfaPendingToken: data.mfaPendingToken,
+      message: data.message
+    });
+  }
+
+  // Normal login — create your app session from Voult tokens
+  setSession(res, data.accessToken, data.refreshToken);
+  return res.json({ step: 'complete', user: data.user });
+});
+```
+
+**Example — your backend MFA verify route:**
+
+```javascript
+app.post('/auth/mfa/verify', async (req, res) => {
+  const { mfaPendingToken, mfaToken } = req.body;
+
+  const voultRes = await fetch(`${process.env.VOULT_BASE_URL}/api/auth/mfa/verify`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Client-Id': process.env.VOULT_CLIENT_ID,
+      'X-Client-Secret': process.env.VOULT_CLIENT_SECRET
+    },
+    body: JSON.stringify({ mfaPendingToken, mfaToken })
+  });
+
+  const data = await voultRes.json();
+
+  if (!voultRes.ok) {
+    return res.status(voultRes.status).json(data);
+  }
+
+  setSession(res, data.accessToken, data.refreshToken);
+  return res.json({ step: 'complete', user: data.user });
+});
+```
+
+`setSession` is your app's responsibility — HTTP-only cookies, secure storage on mobile, etc. Voult only issues the tokens.
+
+### Frontend login flow (two steps)
+
+Your login page must branch on the Voult response:
+
+```javascript
+// Step 1: password
+const loginRes = await fetch('/auth/login', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ email, password })
+});
+const loginData = await loginRes.json();
+
+if (loginData.step === 'mfa') {
+  // Step 2: show MFA screen (do NOT navigate away — keep mfaPendingToken)
+  showMfaScreen(loginData.mfaPendingToken);
+  return;
+}
+
+// No MFA — user is logged in
+redirectToDashboard();
+```
+
+```javascript
+// Step 2: MFA screen submit handler
+async function submitMfa(mfaPendingToken, mfaToken) {
+  const res = await fetch('/auth/mfa/verify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mfaPendingToken, mfaToken })
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    showError(data.error?.message || 'Invalid code');
+    return;
+  }
+
+  redirectToDashboard();
+}
+```
+
+`mfaToken` accepts either:
+
+- A **6-digit TOTP** from the authenticator app
+- An **8-character hex backup code** (e.g. `A1B2C3D4`)
+
+The `mfaPendingToken` expires in **5 minutes**. If it expires, send the user back to the password login step.
+
+### MFA enrollment in your settings page
+
+Add a "Security" or "Two-factor authentication" section that calls Voult on behalf of the logged-in user.
+
+**Step 1 — start setup**
+
+```javascript
+const setupRes = await fetch('/auth/mfa/setup', {
+  method: 'POST',
+  headers: { Authorization: `Bearer ${accessToken}` } // your proxy adds Voult client headers
+});
+const { qrCode, backupCodes, secret } = await setupRes.json();
+
+// Show QR: <img src={qrCode} alt="Scan with authenticator" />
+// Show backupCodes in a "copy these now" modal — Voult will not return them again
+// Optionally show `secret` for manual entry
+```
+
+Your proxy route:
+
+```javascript
+app.post('/auth/mfa/setup', requireUser, async (req, res) => {
+  const voultRes = await fetch(`${process.env.VOULT_BASE_URL}/api/auth/mfa/setup`, {
+    method: 'POST',
+    headers: voultHeaders(req.voultAccessToken) // Bearer + client id/secret
+  });
+  return res.status(voultRes.status).json(await voultRes.json());
+});
+```
+
+**Step 2 — confirm with TOTP**
+
+```javascript
+await fetch('/auth/mfa/enable', {
+  method: 'POST',
+  headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ token: totpFromUser })
+});
+```
+
+Setup expires after **10 minutes**. If expired, call `/setup` again.
+
+### Other MFA operations your app may expose
+
+| User action in your app | Voult endpoint | Notes |
+|-------------------------|----------------|-------|
+| Check MFA status | `GET /api/auth/mfa/status` | Show badge: "2FA enabled" + backup codes remaining |
+| Disable MFA | `POST /api/auth/mfa/disable` | Require password + TOTP in your form |
+| Regenerate backup codes | `POST /api/auth/mfa/backup-codes/regenerate` | Requires current TOTP; show new codes once |
+| Login | `POST /api/auth/email-login` → `POST /api/auth/mfa/verify` | Two-step when `mfaRequired` |
+
+Disabling MFA or regenerating backup codes invalidates existing Voult sessions (`tokenVersion` bump). Log the user out everywhere in your app after these actions.
+
+### Error handling in your app
+
+| Voult response | HTTP | What to show the user |
+|----------------|------|----------------------|
+| `mfaRequired: true` | 200 | MFA input screen |
+| `INVALID_MFA_TOKEN` | 401 | "Invalid code. Try again." |
+| `INVALID_MFA_SESSION` | 401 | "Session expired. Log in again." |
+| `ACCOUNT_LOCKED` | 423 | "Too many attempts. Try again in 15 minutes." |
+| `MFA_SETUP_EXPIRED` | 400 | "Setup timed out. Start again." |
+| `MFA_ALREADY_ENABLED` | 400 | "MFA is already on." |
+| Rate limit on `/mfa/verify` | 429 | "Too many attempts. Wait and retry." |
+
+Always surface Voult's `error.message` rather than raw status codes.
+
+### Environment variables in your codebase
+
+```bash
+# your-app/.env
+VOULT_BASE_URL=https://api.voult.dev
+VOULT_CLIENT_ID=app_abc123
+VOULT_CLIENT_SECRET=your_secret_here   # server-side only
+```
+
+Never commit `VOULT_CLIENT_SECRET` to git or ship it in frontend bundles.
+
+### SPA, Next.js, and mobile apps
+
+The integration pattern is the same across platforms:
+
+| Platform | Login flow | Where `X-Client-Secret` lives |
+|----------|------------|-------------------------------|
+| React / Vue SPA | Frontend → your `/auth/login` API → Voult | Backend env only |
+| Next.js | Server Actions or `/api/auth/*` route handlers | `process.env` on server |
+| React Native / Flutter | App → your backend → Voult | Backend env only |
+| Native iOS / Android | Same as mobile — never embed secret in the app binary |
+
+**SPA state management tip:** after password login returns `step: 'mfa'`, store `mfaPendingToken` in React state (or a short-lived memory store). Do not put it in `localStorage` — it is a temporary step-up credential, not a session token.
+
+**Mobile tip:** use secure storage (Keychain / EncryptedSharedPreferences) for `accessToken` and `refreshToken` only after MFA verify completes.
+
+### Checklist: adding MFA to an app that uses Voult for auth
+
+- [ ] Add `VOULT_CLIENT_ID` and `VOULT_CLIENT_SECRET` to backend env
+- [ ] Proxy login through your backend; branch on `mfaRequired`
+- [ ] Build MFA verification screen; pass `mfaPendingToken` + `mfaToken` to `/api/auth/mfa/verify`
+- [ ] Store `accessToken` + `refreshToken` only after MFA verify succeeds (or after login when MFA is off)
+- [ ] Add settings UI: setup → show QR + backup codes → enable
+- [ ] Handle `INVALID_MFA_SESSION` by restarting login
+- [ ] Handle `ACCOUNT_LOCKED` (423) with a clear cooldown message
+- [ ] Log user out locally after disable or backup code regeneration
+- [ ] Do **not** store TOTP secrets or backup codes in your database
+
+### What you can skip entirely
+
+If Voult is your auth provider, you do **not** need in your codebase:
+
+- `speakeasy` / `qrcode` dependencies
+- User model fields like `mfaSecret`, `mfaBackupCodes`
+- TOTP verification logic
+- Backup code hashing
+- `mfaPendingToken` signing (Voult signs it; you pass it through)
+- MFA rate limiting or lockout logic
+
+Reference the [Voult internals](#how-mfa-works-in-voult) section below only if you need to understand what happens server-side.
+
+---
+
+## How MFA works in Voult
+
+This section documents Voult's internal implementation. Read it for debugging or security review — not required if you are only integrating via API.
+
+### Key files in this codebase
 
 | File | Responsibility |
 |------|----------------|
@@ -64,8 +413,9 @@ sequenceDiagram
 | `controllers/api/auth.js` | Password login returns `mfaPendingToken` when MFA is enabled |
 | `services/authLoginService.js` | Shared logic to issue tokens after successful auth |
 | `tests/services/mfaService.test.js` | Unit tests |
+| `tests/integration/mfa.integration.test.js` | Controller integration tests |
 
-### Dependencies
+### Dependencies (Voult only)
 
 ```bash
 npm install speakeasy qrcode
@@ -74,9 +424,7 @@ npm install speakeasy qrcode
 - **speakeasy** — RFC 6238 TOTP secret generation and verification
 - **qrcode** — generates a scannable QR image from the `otpauth://` URL
 
----
-
-## Database fields
+### Database fields
 
 Add these fields to your user model (sensitive fields use `select: false` so they are not returned by default):
 
@@ -103,7 +451,11 @@ mfaLockUntil: { type: Date, default: null }
 
 ---
 
-## Enrollment flow
+## Voult API reference
+
+These are the endpoints your application calls (directly or via a backend proxy). See [Using Voult MFA in your application](#using-voult-mfa-in-your-application) for integration patterns.
+
+### Enrollment flow
 
 ### Step 1 — Start setup
 
@@ -252,9 +604,11 @@ Disabling MFA or regenerating backup codes increments `tokenVersion`, forcing re
 
 ---
 
-## Implementing MFA in another codebase
+## Building MFA yourself (alternative)
 
-Use this checklist to port the Voult design.
+Only follow this section if you are **building your own auth platform**, not using Voult as your provider. If Voult handles your authentication, use the [integration guide above](#using-voult-mfa-in-your-application) instead.
+
+Use this checklist to port the Voult design into a self-hosted auth system.
 
 ### 1. Install dependencies
 
@@ -368,71 +722,39 @@ At minimum, test:
 - Lockout after N failed attempts
 - `tokenVersion` mismatch rejection
 
-See `tests/services/mfaService.test.js` in this repo for examples.
+See `tests/services/mfaService.test.js` and `tests/integration/mfa.integration.test.js` in this repo for examples.
 
 ---
 
-## Client integration example
+## Direct Voult API calls (server-side only)
+
+If your backend calls Voult directly (no proxy abstraction), the request shapes are:
 
 ```javascript
-// 1. Login with email/password
-const loginRes = await fetch('/api/auth/email-login', {
+// Login
+const loginRes = await fetch(`${VOULT_BASE_URL}/api/auth/email-login`, {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
-    'X-Client-Id': clientId,
-    'X-Client-Secret': clientSecret
+    'X-Client-Id': process.env.VOULT_CLIENT_ID,
+    'X-Client-Secret': process.env.VOULT_CLIENT_SECRET
   },
   body: JSON.stringify({ email, password })
 });
 
-const loginData = await loginRes.json();
-
-if (loginData.mfaRequired) {
-  // 2. Show TOTP input UI
-  const mfaToken = await promptUserForTotp();
-
-  const mfaRes = await fetch('/api/auth/mfa/verify', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Client-Id': clientId,
-      'X-Client-Secret': clientSecret
-    },
-    body: JSON.stringify({
-      mfaPendingToken: loginData.mfaPendingToken,
-      mfaToken
-    })
-  });
-
-  const tokens = await mfaRes.json();
-  storeTokens(tokens.accessToken, tokens.refreshToken);
-} else {
-  storeTokens(loginData.accessToken, loginData.refreshToken);
-}
-```
-
-### Enrollment UI flow
-
-```javascript
-// User is already logged in
-const setupRes = await fetch('/api/auth/mfa/setup', {
+// MFA verify (when loginRes returns mfaRequired: true)
+const mfaRes = await fetch(`${VOULT_BASE_URL}/api/auth/mfa/verify`, {
   method: 'POST',
-  headers: { Authorization: `Bearer ${accessToken}`, ...clientHeaders }
-});
-const { qrCode, backupCodes, secret } = await setupRes.json();
-
-// Display qrCode as <img src={qrCode} />
-// Show backupCodes in a "save these now" dialog
-// Optionally show secret for manual entry
-
-const token = await promptUserForTotp();
-await fetch('/api/auth/mfa/enable', {
-  method: 'POST',
-  headers: { Authorization: `Bearer ${accessToken}`, ...clientHeaders },
-  body: JSON.stringify({ token })
+  headers: {
+    'Content-Type': 'application/json',
+    'X-Client-Id': process.env.VOULT_CLIENT_ID,
+    'X-Client-Secret': process.env.VOULT_CLIENT_SECRET
+  },
+  body: JSON.stringify({ mfaPendingToken, mfaToken })
 });
 ```
+
+Prefer the [backend proxy pattern](#recommended-pattern-backend-auth-proxy) so your frontend never handles Voult client credentials.
 
 ---
 
@@ -446,6 +768,15 @@ When porting to a **session-based web app**, you can store pending setup in the 
 
 ## Common pitfalls
 
+### When using Voult as your auth provider
+
+1. **Exposing `X-Client-Secret` in frontend code** — always proxy auth through your backend.
+2. **Storing tokens before MFA completes** — only persist `accessToken`/`refreshToken` after `/mfa/verify` succeeds.
+3. **Losing `mfaPendingToken`** — keep it in component state between login steps; it expires in 5 minutes.
+4. **Not handling backup codes at enrollment** — Voult returns them once during `/setup`; your UI must prompt the user to save them.
+5. **Ignoring session invalidation** — after disable or backup code regeneration, log users out locally.
+
+### When building MFA yourself
 1. **Returning the TOTP secret after enrollment** — only expose it during setup. After `/enable`, never send `mfaSecret` to the client.
 2. **Storing backup codes in plaintext** — always hash before persistence.
 3. **Skipping `tokenVersion` checks** — without this, a stolen `mfaPendingToken` could work after a password reset.

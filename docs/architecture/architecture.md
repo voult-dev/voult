@@ -825,6 +825,8 @@ Response: { accessToken, refreshToken, user: { id, email, fullName, isEmailVerif
 
 This section is for building on top of Voult. Here's the complete mental model.
 
+> **Auth-only product integration:** if another codebase uses Voult solely for authentication (HTTP API / `voult-sdk`) and nothing else, follow the feature-by-feature guide: [AUTH_ONLY_FEATURE_GUIDE.md](../integration/AUTH_ONLY_FEATURE_GUIDE.md).
+
 ### Setup: What you need from Voult
 
 1. Go to voult.dev → create an App

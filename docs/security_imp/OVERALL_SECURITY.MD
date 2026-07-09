@@ -1,5 +1,7 @@
 # Voult Security Assessment
 
+> **Integrating Voult as auth-only in another app:** see [AUTH_ONLY_FEATURE_GUIDE.md](../integration/AUTH_ONLY_FEATURE_GUIDE.md) for feature-by-feature implementation (password, MFA, WebAuthn, OAuth, magic link, sessions) via the API / `voult-sdk`.
+
 ## Voult as an application: 8.5 / 10
 
 Strong B2B auth platform with a hardened developer portal and consistent API contract. The main `/api/auth/*` path is production-ready for careful deployments.

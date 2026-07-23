@@ -14,31 +14,39 @@ const endUserBuilder = new SafeQueryBuilder(EndUser);
 const appBuilder = new SafeQueryBuilder(App);
 
 async function resolveGitHubProfile(req) {
-  const { code, redirect_uri: redirectUri } = req.body;
+  const { code, redirect_uri: redirectUri, accessToken: bodyAccessToken } = req.body;
   const app = req.appClient;
 
-  if (!code) {
-    throw new ApiError(400, 'VALIDATION_ERROR', 'Authorization code required');
-  }
+  let accessToken = bodyAccessToken;
 
-  if (
-    !app.githubOAuth?.enabled ||
-    !app.githubOAuth.clientId ||
-    !app.githubOAuth.clientSecret
-  ) {
-    throw new ApiError(
-      400,
-      'GITHUB_NOT_CONFIGURED',
-      'GitHub OAuth is not fully configured'
-    );
-  }
+  if (!accessToken) {
+    if (!code) {
+      throw new ApiError(
+        400,
+        'VALIDATION_ERROR',
+        'Authorization code or accessToken is required'
+      );
+    }
 
-  const accessToken = await exchangeCodeForToken({
-    code,
-    clientId: app.githubOAuth.clientId,
-    clientSecret: app.githubOAuth.clientSecret,
-    redirectUri
-  });
+    if (
+      !app.githubOAuth?.enabled ||
+      !app.githubOAuth.clientId ||
+      !app.githubOAuth.clientSecret
+    ) {
+      throw new ApiError(
+        400,
+        'GITHUB_NOT_CONFIGURED',
+        'GitHub OAuth is not fully configured'
+      );
+    }
+
+    accessToken = await exchangeCodeForToken({
+      code,
+      clientId: app.githubOAuth.clientId,
+      clientSecret: app.githubOAuth.clientSecret,
+      redirectUri
+    });
+  }
 
   const { githubId, email, name } = await getGitHubProfile(accessToken);
 

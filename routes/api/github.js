@@ -13,6 +13,8 @@ router.post('/register', verifyClientIdOnly, ipBasedLimiter, catchAsync(controll
 
 router.post('/login', verifyClientIdOnly, ipBasedLimiter, catchAsync(controller.githubLogin));
 
+router.post('/authenticate', verifyClientIdOnly, ipBasedLimiter, catchAsync(controller.githubAuthenticate));
+
 router.get('/profile', verifyClientIdOnly, catchAsync(controller.githubProfile));
 
 module.exports = router;

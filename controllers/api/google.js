@@ -1,8 +1,7 @@
 const EndUser = require('../../models/endUser');
 const { SafeQueryBuilder } = require('../../middleware/queryValidation');
 const { ApiError } = require('../../utils/apiError');
-const { signAccessToken } = require('../../utils/jwt');
-const { createRefreshToken } = require('../../utils/refreshToken');
+const { issueOAuthTokens } = require('../../utils/issueOAuthTokens');
 const { OAuth2Client } = require('google-auth-library');
 
 const { welcomeOAuthUser } = require('../../services/emailService');
@@ -12,7 +11,6 @@ const endUserBuilder = new SafeQueryBuilder(EndUser);
 const appBuilder = new SafeQueryBuilder(App);
 
 async function getGooglePayload({ idToken, accessToken, clientId }) {
-  // -------- 1. Try ID TOKEN (preferred) --------
   if (idToken) {
     const client = new OAuth2Client(clientId);
 
@@ -27,7 +25,6 @@ async function getGooglePayload({ idToken, accessToken, clientId }) {
         _tokenType: 'id_token'
       };
     } catch {
-      // If accessToken exists, fallback. Otherwise fail.
       if (!accessToken) {
         throw new ApiError(
           401,
@@ -38,7 +35,6 @@ async function getGooglePayload({ idToken, accessToken, clientId }) {
     }
   }
 
-  // -------- 2. Fallback: ACCESS TOKEN --------
   if (accessToken) {
     const res = await fetch(
       'https://www.googleapis.com/oauth2/v3/userinfo',
@@ -70,7 +66,6 @@ async function getGooglePayload({ idToken, accessToken, clientId }) {
     };
   }
 
-  // -------- 3. No credential provided --------
   throw new ApiError(
     400,
     'VALIDATION_ERROR',
@@ -78,57 +73,7 @@ async function getGooglePayload({ idToken, accessToken, clientId }) {
   );
 }
 
-/* =========================================================
-   GOOGLE LOGIN
-========================================================= */
-module.exports.googleLogin = async (req, res) => {
-  const { idToken, accessToken } = req.body;
-  const app = req.appClient;
-
-  if (!app.googleOAuth?.clientId) {
-    throw new ApiError(
-      400,
-      'GOOGLE_NOT_CONFIGURED',
-      'Google login not enabled'
-    );
-  }
-
-  /* -------- Verify token (id_token or access_token) -------- */
-  const payload = await getGooglePayload({
-    idToken,
-    accessToken,
-    clientId: app.googleOAuth.clientId
-  });
-
-  const {
-    sub: googleId,
-    email,
-    email_verified
-  } = payload;
-
-  if (!email || !email_verified) {
-    throw new ApiError(
-      403,
-      'EMAIL_NOT_VERIFIED',
-      'Google email not verified'
-    );
-  }
-
-  /* -------- Find existing user -------- */
-  const user = await endUserBuilder.findOne({
-    app: app._id,
-    email,
-    deletedAt: null
-  });
-
-  if (!user) {
-    throw new ApiError(
-      404,
-      'USER_NOT_FOUND',
-      'No account found for this email'
-    );
-  }
-
+async function loginExistingGoogleUser(req, res, user, app, googleId) {
   if (!user.isActive) {
     throw new ApiError(
       403,
@@ -137,7 +82,6 @@ module.exports.googleLogin = async (req, res) => {
     );
   }
 
-  /* -------- Link Google if not linked -------- */
   if (!user.googleId) {
     user.googleId = googleId;
     user.authProvider = 'google';
@@ -147,31 +91,44 @@ module.exports.googleLogin = async (req, res) => {
   user.lastLoginAt = new Date();
   await user.save();
 
-  /* -------- Issue tokens -------- */
-  const accessTokenJwt = signAccessToken(user, app);
-
-  const { rawToken: refreshToken } = await createRefreshToken({
-    endUser: user,
-    app,
-    ipAddress: req.ip,
-    userAgent: req.headers['user-agent']
-  });
-
-  res.status(200).json({
+  await issueOAuthTokens(req, res, user, app, {
     message: 'Google login successful',
-    accessToken: accessTokenJwt,
-    refreshToken,
-    user: {
-      id: user._id,
-      email: user.email
-    }
+    status: 200
   });
-};
+}
 
-/* =========================================================
-   GOOGLE REGISTER
-========================================================= */
-module.exports.googleRegister = async (req, res) => {
+async function registerNewGoogleUser(req, res, app, { googleId, email, fullName }) {
+  const user = await EndUser.create({
+    app: app._id,
+    email,
+    fullName,
+    googleId,
+    authProvider: 'google',
+    isEmailVerified: true,
+    isActive: true,
+    lastLoginAt: new Date()
+  });
+
+  await appBuilder.updateOne(
+    { _id: app._id },
+    { $inc: { 'usage.totalRegistrations': 1 } }
+  );
+
+  await welcomeOAuthUser({
+    to: email,
+    name: fullName,
+    appName: app.name,
+    provider: 'Google'
+  });
+
+  await issueOAuthTokens(req, res, user, app, {
+    message: 'Google registration successful',
+    status: 201,
+    userPayload: { fullName: user.fullName }
+  });
+}
+
+async function handleGoogleAuth(req, res, mode) {
   const { idToken, accessToken } = req.body;
   const app = req.appClient;
 
@@ -179,11 +136,12 @@ module.exports.googleRegister = async (req, res) => {
     throw new ApiError(
       400,
       'GOOGLE_NOT_CONFIGURED',
-      'Google OAuth not enabled'
+      mode === 'register'
+        ? 'Google OAuth not enabled'
+        : 'Google login not enabled'
     );
   }
 
-  /* -------- Verify token (id_token or access_token) -------- */
   const payload = await getGooglePayload({
     idToken,
     accessToken,
@@ -207,70 +165,48 @@ module.exports.googleRegister = async (req, res) => {
     );
   }
 
-  /* -------- Build full name safely -------- */
   const fullName =
     (given_name && family_name && `${given_name} ${family_name}`) ||
     name ||
     null;
 
-  /* -------- Prevent duplicates -------- */
   const existingUser = await endUserBuilder.findOne({
     app: app._id,
     email,
     deletedAt: null
   });
 
-  if (existingUser) {
-    throw new ApiError(
-      409,
-      'USER_EXISTS',
-      'An account with this email already exists'
-    );
+  if (mode === 'login') {
+    if (!existingUser) {
+      throw new ApiError(
+        404,
+        'USER_NOT_FOUND',
+        'No account found for this email'
+      );
+    }
+
+    return loginExistingGoogleUser(req, res, existingUser, app, googleId);
   }
 
-  /* -------- Create user -------- */
-  const user = await EndUser.create({
-    app: app._id,
-    email,
-    fullName,
-    googleId,
-    authProvider: 'google',
-    isEmailVerified: true,
-    isActive: true,
-    lastLoginAt: new Date()
-  });
-
-  await appBuilder.updateOne(
-    { _id: app._id },
-    { $inc: { 'usage.totalRegistrations': 1 } }
-  );
-
-  /* -------- Send welcome email -------- */
-  await welcomeOAuthUser({
-    to: email,
-    name: fullName,
-    appName: app.name,
-    provider: 'Google'
-  });
-
-  /* -------- Issue tokens -------- */
-  const accessTokenJwt = signAccessToken(user, app);
-
-  const { rawToken: refreshToken } = await createRefreshToken({
-    endUser: user,
-    app,
-    ipAddress: req.ip,
-    userAgent: req.headers['user-agent']
-  });
-
-  res.status(201).json({
-    message: 'Google registration successful',
-    accessToken: accessTokenJwt,
-    refreshToken,
-    user: {
-      id: user._id,
-      email: user.email,
-      fullName: user.fullName
+  if (mode === 'register') {
+    if (existingUser) {
+      throw new ApiError(
+        409,
+        'USER_EXISTS',
+        'An account with this email already exists'
+      );
     }
-  });
-};
+
+    return registerNewGoogleUser(req, res, app, { googleId, email, fullName });
+  }
+
+  if (existingUser) {
+    return loginExistingGoogleUser(req, res, existingUser, app, googleId);
+  }
+
+  return registerNewGoogleUser(req, res, app, { googleId, email, fullName });
+}
+
+module.exports.googleLogin = (req, res) => handleGoogleAuth(req, res, 'login');
+module.exports.googleRegister = (req, res) => handleGoogleAuth(req, res, 'register');
+module.exports.googleAuthenticate = (req, res) => handleGoogleAuth(req, res, 'authenticate');

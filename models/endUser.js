@@ -160,11 +160,27 @@ const EndUserSchema = new Schema(
 );
 
 
-/* Ensure email is unique per app when present; sparse allows multiple null (e.g. Facebook users without email) */
-EndUserSchema.index({ app: 1, email: 1 }, { unique: true, sparse: true });
+/* Unique per app when email is a non-empty string (omit field for OAuth-only users without email) */
+EndUserSchema.index(
+  { app: 1, email: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      email: { $exists: true, $type: 'string', $gt: '' }
+    }
+  }
+);
 
-/* Ensure username is unique per app when present; sparse allows multiple null (e.g. users without username) */
-EndUserSchema.index({ app: 1, username: 1 }, { unique: true, sparse: true });
+/* Unique per app when username is set (OAuth users omit username entirely) */
+EndUserSchema.index(
+  { app: 1, username: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      username: { $exists: true, $type: 'string', $gt: '' }
+    }
+  }
+);
 
 /* Password helpers */
 EndUserSchema.methods.setPassword = async function (password) {

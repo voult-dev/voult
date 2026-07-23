@@ -14,4 +14,6 @@ router.post('/register', verifyClientIdOnly, validateCallbackUrl, ipBasedLimiter
 
 router.post('/login', verifyClientIdOnly, validateCallbackUrl, ipBasedLimiter, catchAsync(controller.linkedinLogin));
 
+router.post('/authenticate', verifyClientIdOnly, validateCallbackUrl, ipBasedLimiter, catchAsync(controller.linkedinAuthenticate));
+
 module.exports = router;

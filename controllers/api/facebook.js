@@ -2,15 +2,14 @@ const EndUser = require('../../models/endUser');
 const { SafeQueryBuilder } = require('../../middleware/queryValidation');
 const App = require('../../models/app');
 const { ApiError } = require('../../utils/apiError');
-const { signAccessToken } = require('../../utils/jwt');
-const { createRefreshToken } = require('../../utils/refreshToken');
+const { issueOAuthTokens } = require('../../utils/issueOAuthTokens');
 const { getFacebookProfile } = require('../../utils/facebookOAuth');
 const { welcomeOAuthUser } = require('../../services/emailService');
 
 const endUserBuilder = new SafeQueryBuilder(EndUser);
 const appBuilder = new SafeQueryBuilder(App);
 
-module.exports.facebookRegister = async (req, res) => {
+async function resolveFacebookProfile(req) {
   const { accessToken } = req.body;
   const app = req.appClient;
 
@@ -28,41 +27,45 @@ module.exports.facebookRegister = async (req, res) => {
 
   const { facebookId, email, fullName } = await getFacebookProfile(accessToken);
 
-  // Look up by email if present, otherwise by facebookId (accounts without email)
-  const existingUser = email
-    ? await endUserBuilder.findOne({ app: app._id, email, deletedAt: null })
-    : await endUserBuilder.findOne({ app: app._id, facebookId, deletedAt: null });
+  return { app, facebookId, email, fullName };
+}
 
-  if (existingUser) {
-    if (existingUser.facebookId && existingUser.facebookId === facebookId) {
-      // Same person: treat as login
-      existingUser.lastLoginAt = new Date();
-      await existingUser.save();
-      const accessJwt = signAccessToken(existingUser, app);
-      const { rawToken: refreshToken } = await createRefreshToken({
-        endUser: existingUser,
-        app,
-        ipAddress: req.ip,
-        userAgent: req.headers['user-agent']
-      });
-      return res.json({
-        message: 'Facebook login successful',
-        accessToken: accessJwt,
-        refreshToken,
-        user: {
-          id: existingUser._id,
-          email: existingUser.email,
-          fullName: existingUser.fullName
-        }
-      });
-    }
+async function findFacebookUser(app, email, facebookId) {
+  if (email) {
+    return endUserBuilder.findOne({ app: app._id, email, deletedAt: null });
+  }
+
+  return endUserBuilder.findOne({ app: app._id, facebookId, deletedAt: null });
+}
+
+async function loginExistingFacebookUser(req, res, user, app, facebookId) {
+  if (!user.isActive) {
     throw new ApiError(
-      409,
-      'USER_EXISTS',
-      'An account with this email already exists'
+      403,
+      'ACCOUNT_DISABLED',
+      'Account is disabled'
     );
   }
 
+  if (!user.facebookId) {
+    user.facebookId = facebookId;
+    user.authProvider = 'facebook';
+    user.isEmailVerified = true;
+  }
+
+  user.lastLoginAt = new Date();
+  await user.save();
+
+  await issueOAuthTokens(req, res, user, app, {
+    message: 'Facebook login successful',
+    status: 200,
+    userPayload: {
+      fullName: user.fullName
+    }
+  });
+}
+
+async function registerNewFacebookUser(req, res, app, { facebookId, email, fullName }) {
   const user = await EndUser.create({
     app: app._id,
     email: email || undefined,
@@ -88,86 +91,54 @@ module.exports.facebookRegister = async (req, res) => {
     }).catch(err => console.error('Welcome email failed', err.message));
   }
 
-  const accessJwt = signAccessToken(user, app);
-  const { rawToken: refreshToken } = await createRefreshToken({
-    endUser: user,
-    app,
-    ipAddress: req.ip,
-    userAgent: req.headers['user-agent']
-  });
-
-  res.status(201).json({
+  await issueOAuthTokens(req, res, user, app, {
     message: 'Facebook registration successful',
-    accessToken: accessJwt,
-    refreshToken,
-    user: {
-      id: user._id,
-      email: user.email || null,
+    status: 201,
+    userPayload: {
       fullName: user.fullName
     }
   });
-};
+}
 
+async function handleFacebookAuth(req, res, mode) {
+  const { app, facebookId, email, fullName } = await resolveFacebookProfile(req);
+  const existingUser = await findFacebookUser(app, email, facebookId);
 
-module.exports.facebookLogin = async (req, res) => {
-    const { accessToken } = req.body;
-    const app = req.appClient;
-  
-    if (!accessToken) {
-      throw new ApiError(400, 'VALIDATION_ERROR', 'accessToken is required');
-    }
-  
-    const { facebookId, email } =
-      await getFacebookProfile(accessToken);
-  
-    // Find by email if present, otherwise by facebookId (accounts without email)
-    const user = email
-      ? await endUserBuilder.findOne({ app: app._id, email, deletedAt: null })
-      : await endUserBuilder.findOne({ app: app._id, facebookId, deletedAt: null });
-  
-    if (!user) {
+  if (mode === 'login') {
+    if (!existingUser) {
       throw new ApiError(
         404,
         'USER_NOT_FOUND',
         'No account found for this Facebook account'
       );
     }
-  
-    if (!user.facebookId) {
-      user.facebookId = facebookId;
-      user.authProvider = 'facebook';
-      user.isEmailVerified = true;
-    }
-  
-    if (!user.isActive) {
+
+    return loginExistingFacebookUser(req, res, existingUser, app, facebookId);
+  }
+
+  if (mode === 'register') {
+    if (existingUser) {
+      if (existingUser.facebookId && existingUser.facebookId === facebookId) {
+        return loginExistingFacebookUser(req, res, existingUser, app, facebookId);
+      }
+
       throw new ApiError(
-        403,
-        'ACCOUNT_DISABLED',
-        'Account is disabled'
+        409,
+        'USER_EXISTS',
+        'An account with this email already exists'
       );
     }
-  
-    user.lastLoginAt = new Date();
-    await user.save();
-  
-    const accessJwt = signAccessToken(user, app);
-    const { rawToken: refreshToken } = await createRefreshToken({
-      endUser: user,
-      app,
-      ipAddress: req.ip,
-      userAgent: req.headers['user-agent']
-    });
-  
-    res.json({
-      message: 'Facebook login successful',
-      accessToken: accessJwt,
-      refreshToken,
-      user: {
-        id: user._id,
-        email: user.email || null,
-        fullName: user.fullName
-      }
-    });
-  };
-  
 
+    return registerNewFacebookUser(req, res, app, { facebookId, email, fullName });
+  }
+
+  if (existingUser) {
+    return loginExistingFacebookUser(req, res, existingUser, app, facebookId);
+  }
+
+  return registerNewFacebookUser(req, res, app, { facebookId, email, fullName });
+}
+
+module.exports.facebookRegister = (req, res) => handleFacebookAuth(req, res, 'register');
+module.exports.facebookLogin = (req, res) => handleFacebookAuth(req, res, 'login');
+module.exports.facebookAuthenticate = (req, res) => handleFacebookAuth(req, res, 'authenticate');

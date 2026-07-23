@@ -6,16 +6,14 @@ const {
   exchangeCodeForToken,
   getGitHubProfile
 } = require('../../utils/githubOAuth');
-const { signAccessToken } = require('../../utils/jwt');
-const { createRefreshToken } = require('../../utils/refreshToken');
+const { issueOAuthTokens } = require('../../utils/issueOAuthTokens');
+
+const { welcomeOAuthUser } = require('../../services/emailService');
 
 const endUserBuilder = new SafeQueryBuilder(EndUser);
 const appBuilder = new SafeQueryBuilder(App);
 
-// Email Services
-const {welcomeOAuthUser} = require('../../services/emailService');
-
-module.exports.githubRegister = async (req, res) => {
+async function resolveGitHubProfile(req) {
   const { code, redirect_uri: redirectUri } = req.body;
   const app = req.appClient;
 
@@ -48,16 +46,29 @@ module.exports.githubRegister = async (req, res) => {
     throw new ApiError(400, 'EMAIL_REQUIRED', 'GitHub email not available');
   }
 
-  const existingUser = await endUserBuilder.findOne({
-    app: app._id,
-    email,
-    deletedAt: null
-  });
+  return { app, githubId, email, name };
+}
 
-  if (existingUser) {
-    throw new ApiError(409, 'USER_EXISTS', 'Account already exists');
+async function loginExistingGitHubUser(req, res, user, app, githubId) {
+  if (!user.isActive) {
+    throw new ApiError(403, 'ACCOUNT_DISABLED', 'Account disabled');
   }
 
+  if (!user.githubId) {
+    user.githubId = githubId;
+    user.authProvider = 'github';
+  }
+
+  user.lastLoginAt = new Date();
+  await user.save();
+
+  await issueOAuthTokens(req, res, user, app, {
+    message: 'GitHub login successful',
+    status: 200
+  });
+}
+
+async function registerNewGitHubUser(req, res, app, { githubId, email, name }) {
   const user = await EndUser.create({
     app: app._id,
     email,
@@ -74,7 +85,6 @@ module.exports.githubRegister = async (req, res) => {
     { $inc: { 'usage.totalRegistrations': 1 } }
   );
 
-  // Send Welcome Email
   await welcomeOAuthUser({
     to: user.email,
     name: user.fullName,
@@ -84,102 +94,47 @@ module.exports.githubRegister = async (req, res) => {
     console.error('Welcome email failed', err.message);
   });
 
-  const accessJwt = signAccessToken(user, app);
-
-  const { rawToken: refreshToken } = await createRefreshToken({
-    endUser: user,
-    app,
-    ipAddress: req.ip,
-    userAgent: req.headers['user-agent']
-  });
-
-  res.status(201).json({
+  await issueOAuthTokens(req, res, user, app, {
     message: 'GitHub registration successful',
-    accessToken: accessJwt,
-    refreshToken,
-    user: {
-      id: user._id,
-      email: user.email
-    }
+    status: 201
   });
-};
+}
 
+async function handleGitHubAuth(req, res, mode) {
+  const { app, githubId, email, name } = await resolveGitHubProfile(req);
 
-module.exports.githubLogin = async (req, res) => {
-  const { code, redirect_uri: redirectUri } = req.body;
-  const app = req.appClient;
-
-  if (!code) {
-    throw new ApiError(400, 'VALIDATION_ERROR', 'Authorization code required');
-  }
-
-  if (
-    !app.githubOAuth?.enabled ||
-    !app.githubOAuth.clientId ||
-    !app.githubOAuth.clientSecret
-  ) {
-    throw new ApiError(
-      400,
-      'GITHUB_NOT_CONFIGURED',
-      'GitHub OAuth is not fully configured'
-    );
-  }
-
-  const accessToken = await exchangeCodeForToken({
-    code,
-    clientId: app.githubOAuth.clientId,
-    clientSecret: app.githubOAuth.clientSecret,
-    redirectUri
-  });
-
-  const { githubId, email } = await getGitHubProfile(accessToken);
-
-  if (!email) {
-    throw new ApiError(400, 'EMAIL_REQUIRED', 'GitHub email not available');
-  }
-
-  const user = await endUserBuilder.findOne({
+  const existingUser = await endUserBuilder.findOne({
     app: app._id,
     email,
     deletedAt: null
   });
 
-  if (!user) {
-    throw new ApiError(404, 'USER_NOT_FOUND', 'Account not found');
-  }
-
-  if (!user.githubId) {
-    user.githubId = githubId;
-    user.authProvider = 'github';
-  }
-
-  if (!user.isActive) {
-    throw new ApiError(403, 'ACCOUNT_DISABLED', 'Account disabled');
-  }
-
-  user.lastLoginAt = new Date();
-  await user.save();
-
-  const accessJwt = signAccessToken(user, app);
-
-  const { rawToken: refreshToken } = await createRefreshToken({
-    endUser: user,
-    app,
-    ipAddress: req.ip,
-    userAgent: req.headers['user-agent']
-  });
-
-  res.json({
-    message: 'GitHub login successful',
-    accessToken: accessJwt,
-    refreshToken,
-    user: {
-      id: user._id,
-      email: user.email
+  if (mode === 'login') {
+    if (!existingUser) {
+      throw new ApiError(404, 'USER_NOT_FOUND', 'Account not found');
     }
-  });
-};
 
+    return loginExistingGitHubUser(req, res, existingUser, app, githubId);
+  }
+
+  if (mode === 'register') {
+    if (existingUser) {
+      throw new ApiError(409, 'USER_EXISTS', 'Account already exists');
+    }
+
+    return registerNewGitHubUser(req, res, app, { githubId, email, name });
+  }
+
+  if (existingUser) {
+    return loginExistingGitHubUser(req, res, existingUser, app, githubId);
+  }
+
+  return registerNewGitHubUser(req, res, app, { githubId, email, name });
+}
+
+module.exports.githubRegister = (req, res) => handleGitHubAuth(req, res, 'register');
+module.exports.githubLogin = (req, res) => handleGitHubAuth(req, res, 'login');
+module.exports.githubAuthenticate = (req, res) => handleGitHubAuth(req, res, 'authenticate');
 
 module.exports.githubProfile = async (req, res) => {
   const user = req.endUser;

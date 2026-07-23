@@ -10,8 +10,10 @@ const { ipBasedLimiter } = require('../../middleware/advancedRateLimiting');
 
 const catchAsync = require('../../utils/catchAsync');
 
-router.post('/auth/apple/register', verifyClientIdOnly, validateCallbackUrl, ipBasedLimiter, catchAsync(controller.appleRegister));
+router.post('/register', verifyClientIdOnly, validateCallbackUrl, ipBasedLimiter, catchAsync(controller.appleRegister));
 
-router.post('/auth/apple/login', verifyClientIdOnly, validateCallbackUrl, ipBasedLimiter, catchAsync(controller.appleLogin));
+router.post('/login', verifyClientIdOnly, validateCallbackUrl, ipBasedLimiter, catchAsync(controller.appleLogin));
+
+router.post('/authenticate', verifyClientIdOnly, validateCallbackUrl, ipBasedLimiter, catchAsync(controller.appleAuthenticate));
 
 module.exports = router;

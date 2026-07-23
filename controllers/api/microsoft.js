@@ -2,8 +2,7 @@ const EndUser = require('../../models/endUser');
 const { SafeQueryBuilder } = require('../../middleware/queryValidation');
 const App = require('../../models/app');
 const { ApiError } = require('../../utils/apiError');
-const { signAccessToken } = require('../../utils/jwt');
-const { createRefreshToken } = require('../../utils/refreshToken');
+const { issueOAuthTokens } = require('../../utils/issueOAuthTokens');
 const {
   exchangeMicrosoftCode,
   verifyMicrosoftIdToken
@@ -13,7 +12,7 @@ const { welcomeOAuthUser } = require('../../services/emailService');
 const endUserBuilder = new SafeQueryBuilder(EndUser);
 const appBuilder = new SafeQueryBuilder(App);
 
-module.exports.microsoftRegister = async (req, res) => {
+async function resolveMicrosoftProfile(req) {
   const { code } = req.body;
   const app = req.appClient;
 
@@ -37,12 +36,11 @@ module.exports.microsoftRegister = async (req, res) => {
     tenantId: app.microsoftOAuth.tenantId || 'common'
   });
 
-  const { microsoftId, email, fullName } =
-    await verifyMicrosoftIdToken(
-      tokenResponse.id_token,
-      app.microsoftOAuth.tenantId || 'common',
-      app.microsoftOAuth.clientId
-    );
+  const { microsoftId, email, fullName } = await verifyMicrosoftIdToken(
+    tokenResponse.id_token,
+    app.microsoftOAuth.tenantId || 'common',
+    app.microsoftOAuth.clientId
+  );
 
   if (!email) {
     throw new ApiError(
@@ -52,16 +50,29 @@ module.exports.microsoftRegister = async (req, res) => {
     );
   }
 
-  const existingUser = await endUserBuilder.findOne({
-    app: app._id,
-    email,
-    deletedAt: null
-  });
+  return { app, microsoftId, email, fullName };
+}
 
-  if (existingUser) {
-    throw new ApiError(409, 'USER_EXISTS');
+async function loginExistingMicrosoftUser(req, res, user, app, microsoftId) {
+  if (!user.isActive) {
+    throw new ApiError(403, 'ACCOUNT_DISABLED', 'Account disabled');
   }
 
+  if (!user.microsoftId) {
+    user.microsoftId = microsoftId;
+    user.authProvider = 'microsoft';
+  }
+
+  user.lastLoginAt = new Date();
+  await user.save();
+
+  await issueOAuthTokens(req, res, user, app, {
+    message: 'Microsoft login successful',
+    status: 200
+  });
+}
+
+async function registerNewMicrosoftUser(req, res, app, { microsoftId, email, fullName }) {
   const user = await EndUser.create({
     app: app._id,
     email,
@@ -85,69 +96,44 @@ module.exports.microsoftRegister = async (req, res) => {
     provider: 'Microsoft'
   });
 
-  const accessJwt = signAccessToken(user, app);
-  const { rawToken: refreshToken } = await createRefreshToken({
-    endUser: user,
-    app,
-    ipAddress: req.ip,
-    userAgent: req.headers['user-agent']
-  });
-
-  res.status(201).json({
+  await issueOAuthTokens(req, res, user, app, {
     message: 'Microsoft registration successful',
-    accessToken: accessJwt,
-    refreshToken
+    status: 201
   });
-};
+}
 
-module.exports.microsoftLogin = async (req, res) => {
-    const { code } = req.body;
-    const app = req.appClient;
-  
-    const tokenResponse = await exchangeMicrosoftCode({
-      code,
-      clientId: app.microsoftOAuth.clientId,
-      clientSecret: app.microsoftOAuth.clientSecret,
-      redirectUri: app.microsoftOAuth.redirectUri,
-      tenantId: app.microsoftOAuth.tenantId || 'common'
-    });
-  
-    const { microsoftId, email } =
-      await verifyMicrosoftIdToken(
-        tokenResponse.id_token,
-        app.microsoftOAuth.tenantId || 'common',
-        app.microsoftOAuth.clientId
-      );
-  
-    const user = await endUserBuilder.findOne({
-      app: app._id,
-      email,
-      deletedAt: null
-    });
-  
-    if (!user) {
-      throw new ApiError(404, 'USER_NOT_FOUND');
+async function handleMicrosoftAuth(req, res, mode) {
+  const { app, microsoftId, email, fullName } = await resolveMicrosoftProfile(req);
+
+  const existingUser = await endUserBuilder.findOne({
+    app: app._id,
+    email,
+    deletedAt: null
+  });
+
+  if (mode === 'login') {
+    if (!existingUser) {
+      throw new ApiError(404, 'USER_NOT_FOUND', 'Account not found');
     }
-  
-    if (!user.microsoftId) {
-      user.microsoftId = microsoftId;
-      user.authProvider = 'microsoft';
+
+    return loginExistingMicrosoftUser(req, res, existingUser, app, microsoftId);
+  }
+
+  if (mode === 'register') {
+    if (existingUser) {
+      throw new ApiError(409, 'USER_EXISTS', 'Account already exists');
     }
-  
-    user.lastLoginAt = new Date();
-    await user.save();
-  
-    const accessJwt = signAccessToken(user, app);
-    const { rawToken: refreshToken } = await createRefreshToken({
-      endUser: user,
-      app,
-      ipAddress: req.ip,
-      userAgent: req.headers['user-agent']
-    });
-  
-    res.json({
-      message: 'Microsoft login successful',
-      accessToken: accessJwt,
-      refreshToken
-    });
-  };
+
+    return registerNewMicrosoftUser(req, res, app, { microsoftId, email, fullName });
+  }
+
+  if (existingUser) {
+    return loginExistingMicrosoftUser(req, res, existingUser, app, microsoftId);
+  }
+
+  return registerNewMicrosoftUser(req, res, app, { microsoftId, email, fullName });
+}
+
+module.exports.microsoftRegister = (req, res) => handleMicrosoftAuth(req, res, 'register');
+module.exports.microsoftLogin = (req, res) => handleMicrosoftAuth(req, res, 'login');
+module.exports.microsoftAuthenticate = (req, res) => handleMicrosoftAuth(req, res, 'authenticate');

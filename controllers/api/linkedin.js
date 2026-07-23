@@ -2,8 +2,7 @@ const EndUser = require('../../models/endUser');
 const { SafeQueryBuilder } = require('../../middleware/queryValidation');
 const App = require('../../models/app');
 const { ApiError } = require('../../utils/apiError');
-const { signAccessToken } = require('../../utils/jwt');
-const { createRefreshToken } = require('../../utils/refreshToken');
+const { issueOAuthTokens } = require('../../utils/issueOAuthTokens');
 const {
   exchangeCodeForToken,
   getLinkedInProfile
@@ -13,7 +12,7 @@ const { welcomeOAuthUser } = require('../../services/emailService');
 const endUserBuilder = new SafeQueryBuilder(EndUser);
 const appBuilder = new SafeQueryBuilder(App);
 
-module.exports.linkedinRegister = async (req, res) => {
+async function resolveLinkedInProfile(req) {
   const { code } = req.body;
   const app = req.appClient;
 
@@ -36,25 +35,32 @@ module.exports.linkedinRegister = async (req, res) => {
     redirectUri: app.linkedinOAuth.redirectUri
   });
 
-  console.log('LinkedIn OAuth successful, got access token');
+  const { linkedinId, email, fullName } = await getLinkedInProfile(accessToken);
 
-  const { linkedinId, email, fullName } =
-    await getLinkedInProfile(accessToken);
+  return { app, linkedinId, email, fullName };
+}
 
-  const existingUser = await endUserBuilder.findOne({
-    app: app._id,
-    email,
-    deletedAt: null
-  });
-
-  if (existingUser) {
-    throw new ApiError(
-      409,
-      'USER_EXISTS',
-      'An account with this email already exists'
-    );
+async function loginExistingLinkedInUser(req, res, user, app, linkedinId) {
+  if (!user.isActive) {
+    throw new ApiError(403, 'ACCOUNT_DISABLED', 'Account disabled');
   }
 
+  if (!user.linkedinId) {
+    user.linkedinId = linkedinId;
+    user.authProvider = 'linkedin';
+    user.isEmailVerified = true;
+  }
+
+  user.lastLoginAt = new Date();
+  await user.save();
+
+  await issueOAuthTokens(req, res, user, app, {
+    message: 'LinkedIn login successful',
+    status: 200
+  });
+}
+
+async function registerNewLinkedInUser(req, res, app, { linkedinId, email, fullName }) {
   const user = await EndUser.create({
     app: app._id,
     email,
@@ -78,74 +84,49 @@ module.exports.linkedinRegister = async (req, res) => {
     provider: 'LinkedIn'
   });
 
-  const accessJwt = signAccessToken(user, app);
-  const { rawToken: refreshToken } = await createRefreshToken({
-    endUser: user,
-    app,
-    ipAddress: req.ip,
-    userAgent: req.headers['user-agent']
-  });
-
-  res.status(201).json({
+  await issueOAuthTokens(req, res, user, app, {
     message: 'LinkedIn registration successful',
-    accessToken: accessJwt,
-    refreshToken,
-    user: {
-      id: user._id,
-      email,
-      fullName
-    }
+    status: 201,
+    userPayload: { fullName }
   });
-};
+}
 
-module.exports.linkedinLogin = async (req, res) => {
-    const { code } = req.body;
-    const app = req.appClient;
-  
-    const accessToken = await exchangeCodeForToken({
-      code,
-      clientId: app.linkedinOAuth.clientId,
-      clientSecret: app.linkedinOAuth.clientSecret,
-      redirectUri: app.linkedinOAuth.redirectUri
-    });
-  
-    const { linkedinId, email } =
-      await getLinkedInProfile(accessToken);
-  
-    const user = await endUserBuilder.findOne({
-      app: app._id,
-      email,
-      deletedAt: null
-    });
-  
-    if (!user) {
-      throw new ApiError(404, 'USER_NOT_FOUND');
+async function handleLinkedInAuth(req, res, mode) {
+  const { app, linkedinId, email, fullName } = await resolveLinkedInProfile(req);
+
+  const existingUser = await endUserBuilder.findOne({
+    app: app._id,
+    email,
+    deletedAt: null
+  });
+
+  if (mode === 'login') {
+    if (!existingUser) {
+      throw new ApiError(404, 'USER_NOT_FOUND', 'Account not found');
     }
-  
-    if (!user.linkedinId) {
-      user.linkedinId = linkedinId;
-      user.authProvider = 'linkedin';
-      user.isEmailVerified = true;
+
+    return loginExistingLinkedInUser(req, res, existingUser, app, linkedinId);
+  }
+
+  if (mode === 'register') {
+    if (existingUser) {
+      throw new ApiError(
+        409,
+        'USER_EXISTS',
+        'An account with this email already exists'
+      );
     }
-  
-    if (!user.isActive) {
-      throw new ApiError(403, 'ACCOUNT_DISABLED');
-    }
-  
-    user.lastLoginAt = new Date();
-    await user.save();
-  
-    const accessJwt = signAccessToken(user, app);
-    const { rawToken: refreshToken } = await createRefreshToken({
-      endUser: user,
-      app,
-      ipAddress: req.ip,
-      userAgent: req.headers['user-agent']
-    });
-  
-    res.json({
-      message: 'LinkedIn login successful',
-      accessToken: accessJwt,
-      refreshToken
-    });
-  };
+
+    return registerNewLinkedInUser(req, res, app, { linkedinId, email, fullName });
+  }
+
+  if (existingUser) {
+    return loginExistingLinkedInUser(req, res, existingUser, app, linkedinId);
+  }
+
+  return registerNewLinkedInUser(req, res, app, { linkedinId, email, fullName });
+}
+
+module.exports.linkedinRegister = (req, res) => handleLinkedInAuth(req, res, 'register');
+module.exports.linkedinLogin = (req, res) => handleLinkedInAuth(req, res, 'login');
+module.exports.linkedinAuthenticate = (req, res) => handleLinkedInAuth(req, res, 'authenticate');

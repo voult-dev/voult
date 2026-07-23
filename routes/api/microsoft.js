@@ -9,8 +9,10 @@ const { ipBasedLimiter } = require('../../middleware/advancedRateLimiting');
 
 const catchAsync = require('../../utils/catchAsync');
 
-router.post('/auth/microsoft/register', verifyClientIdOnly, ipBasedLimiter, catchAsync(controller.microsoftRegister));
+router.post('/register', verifyClientIdOnly, ipBasedLimiter, catchAsync(controller.microsoftRegister));
 
-router.post('/auth/microsoft/login', verifyClientIdOnly, ipBasedLimiter, catchAsync(controller.microsoftLogin));
+router.post('/login', verifyClientIdOnly, ipBasedLimiter, catchAsync(controller.microsoftLogin));
+
+router.post('/authenticate', verifyClientIdOnly, ipBasedLimiter, catchAsync(controller.microsoftAuthenticate));
 
 module.exports = router;

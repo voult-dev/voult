@@ -4,7 +4,6 @@ const { ApiError } = require('../../utils/apiError');
 const { signAccessToken } = require('../../utils/jwt');
 const { createRefreshToken } = require('../../utils/refreshToken');
 const { OAuth2Client } = require('google-auth-library');
-const fetch = require('node-fetch'); // or global fetch (Node 18+)
 
 const { welcomeOAuthUser } = require('../../services/emailService');
 const App = require('../../models/app');

@@ -13,27 +13,43 @@ const endUserBuilder = new SafeQueryBuilder(EndUser);
 const appBuilder = new SafeQueryBuilder(App);
 
 async function resolveLinkedInProfile(req) {
-  const { code } = req.body;
+  const { code, accessToken: bodyAccessToken } = req.body;
   const app = req.appClient;
 
-  if (!code) {
-    throw new ApiError(400, 'VALIDATION_ERROR', 'code is required');
-  }
+  let accessToken = bodyAccessToken;
 
-  if (!app.linkedinOAuth?.enabled) {
-    throw new ApiError(
-      400,
-      'LINKEDIN_NOT_ENABLED',
-      'LinkedIn OAuth not enabled'
-    );
-  }
+  if (!accessToken) {
+    if (!code) {
+      throw new ApiError(
+        400,
+        'VALIDATION_ERROR',
+        'code or accessToken is required'
+      );
+    }
 
-  const accessToken = await exchangeCodeForToken({
-    code,
-    clientId: app.linkedinOAuth.clientId,
-    clientSecret: app.linkedinOAuth.clientSecret,
-    redirectUri: app.linkedinOAuth.redirectUri
-  });
+    if (!app.linkedinOAuth?.enabled) {
+      throw new ApiError(
+        400,
+        'LINKEDIN_NOT_ENABLED',
+        'LinkedIn OAuth not enabled'
+      );
+    }
+
+    if (!app.linkedinOAuth.clientId || !app.linkedinOAuth.clientSecret) {
+      throw new ApiError(
+        400,
+        'LINKEDIN_NOT_CONFIGURED',
+        'LinkedIn OAuth is not fully configured'
+      );
+    }
+
+    accessToken = await exchangeCodeForToken({
+      code,
+      clientId: app.linkedinOAuth.clientId,
+      clientSecret: app.linkedinOAuth.clientSecret,
+      redirectUri: app.linkedinOAuth.redirectUri
+    });
+  }
 
   const { linkedinId, email, fullName } = await getLinkedInProfile(accessToken);
 

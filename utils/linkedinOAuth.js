@@ -23,11 +23,12 @@ module.exports.exchangeCodeForToken = async ({
 
     return data.access_token;
   } catch (error) {
-    console.error('LinkedIn token exchange error:', error.response?.data || error.message);
+    const details = error.response?.data;
+    console.error('LinkedIn token exchange error:', details || error.message);
     throw new ApiError(
       401,
       'LINKEDIN_TOKEN_EXCHANGE_FAILED',
-      'Failed to exchange LinkedIn authorization code'
+      details?.error_description || details?.error || 'Failed to exchange LinkedIn authorization code'
     );
   }
 };

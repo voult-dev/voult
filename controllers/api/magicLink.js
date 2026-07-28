@@ -43,16 +43,16 @@ module.exports.sendLink = async (req, res) => {
     throw new ApiError(400, 'VALIDATION_ERROR', 'Client ID (appId) is required');
   }
 
-  if (!redirectUri) {
-    throw new ApiError(400, 'VALIDATION_ERROR', 'Redirect URI (developer app URL) is required');
-  }
+  // if (!redirectUri) {
+  //   throw new ApiError(400, 'VALIDATION_ERROR', 'Redirect URI (developer app URL) is required');
+  // }
 
-  // Validate redirectUri format (must be a valid URL)
-  try {
-    new URL(redirectUri);
-  } catch {
-    throw new ApiError(400, 'VALIDATION_ERROR', 'Invalid redirect URI format. Must be a valid URL.');
-  }
+  // // Validate redirectUri format (must be a valid URL)
+  // try {
+  //   new URL(redirectUri);
+  // } catch {
+  //   throw new ApiError(400, 'VALIDATION_ERROR', 'Invalid redirect URI format. Must be a valid URL.');
+  // }
 
   const normalizedEmail = email.toLowerCase().trim();
 
@@ -62,15 +62,15 @@ module.exports.sendLink = async (req, res) => {
     throw new ApiError(404, 'APP_NOT_FOUND', 'App not found or inactive');
   }
 
-  // Redirect URI allowlist enforcement: only allow redirectUri configured for this app
-  // This matches the semantics of validateCallbackUrl
-  if (!Array.isArray(app.allowedCallbackUrls) || !app.allowedCallbackUrls.includes(redirectUri)) {
-    throw new ApiError(
-      400,
-      'INVALID_CALLBACK_URL',
-      'Redirect URI is not allowlisted for this app'
-    );
-  }
+  // // Redirect URI allowlist enforcement: only allow redirectUri configured for this app
+  // // This matches the semantics of validateCallbackUrl
+  // if (!Array.isArray(app.allowedCallbackUrls) || !app.allowedCallbackUrls.includes(redirectUri)) {
+  //   throw new ApiError(
+  //     400,
+  //     'INVALID_CALLBACK_URL',
+  //     'Redirect URI is not allowlisted for this app'
+  //   );
+  // }
 
   // Generate a secure random token
   const rawToken = crypto.randomBytes(32).toString('hex');

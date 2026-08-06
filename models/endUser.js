@@ -188,6 +188,10 @@ EndUserSchema.methods.setPassword = async function (password) {
 };
 
 EndUserSchema.methods.verifyPassword = async function (password) {
+  if (!this.passwordHash) {
+    return false;
+  }
+
   return bcrypt.compare(password, this.passwordHash);
 };
 

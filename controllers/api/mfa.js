@@ -175,15 +175,20 @@ module.exports.disableMfa = async (req, res) => {
     throw new ApiError(400, 'MFA_NOT_ENABLED', 'MFA is not enabled for this account');
   }
 
-  if (!password || !mfaToken) {
-    throw new ApiError(400, 'VALIDATION_ERROR', 'password and mfaToken are required');
+  if (!mfaToken) {
+    throw new ApiError(400, 'VALIDATION_ERROR', 'mfaToken is required');
   }
 
-  const passwordValid = await user.verifyPassword(password);
+  const hasPassword = Boolean(user.passwordHash);
+  if (hasPassword && !password) {
+    throw new ApiError(400, 'VALIDATION_ERROR', 'password is required');
+  }
+
+  const passwordValid = hasPassword ? await user.verifyPassword(password) : true;
   const totpValid = MFAService.verifyToken(user.mfaSecret, mfaToken);
   const backupValid = MFAService.verifyBackupCode(mfaToken, user.mfaBackupCodes);
 
-  if (!passwordValid || (!totpValid && !backupValid)) {
+  if ((hasPassword && !passwordValid) || (!totpValid && !backupValid)) {
     await AuditService.log('MFA_VERIFY_FAILURE', user._id, req.appClient._id, req, {
       details: { stage: 'DISABLE' },
       status: 'FAILURE',

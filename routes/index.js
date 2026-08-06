@@ -25,6 +25,7 @@ const auditLogRoutes = require('./api/auditLog');
 const ipAllowlistRoutes = require('./api/ipAllowlist');
 const userOAuthAccounts = require('./api/userOAuthAccounts');
 const magicLinkRoutes = require('./api/magicLink');
+const providerVisibilityRoutes = require('./api/providerVisibility');
 
 // Mount Web Routes
 router.use('/', webAuthRoutes);
@@ -53,6 +54,7 @@ router.use('/api/auth/apple', apiApple);
 router.use('/api', oauthLinking);
 router.use('/api', magicLinkRoutes);
 router.use('/api', userOAuthAccounts);
+router.use('/api/provider-visibility', providerVisibilityRoutes);
 // router.use('/api/health', healthRoutes);
 
 router.use(require('../middleware/apiErrorHandler'));

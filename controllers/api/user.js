@@ -309,7 +309,6 @@ module.exports.verifyEmail = async (req, res) => {
         email: user.email,
         app : user.app,
         name: user.fullName,
-        isEmailVerified: user.isEmailVerified,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
   
@@ -372,10 +371,10 @@ module.exports.updateProfile = async (req, res) => {
   res.status(200).json({
     message: 'Profile updated successfully',
     user: {
-      id: user._id,
       email: user.email,
+      username: user.username,
       fullName: user.fullName,
-      authProvider: user.authProvider,
+      name: user.fullName,
       updatedAt: user.updatedAt,
     },
   });

@@ -186,7 +186,6 @@ module.exports.validateToken = async (req, res) => {
         id: user._id,
         email: user.email,
         fullName: user.fullName,
-        isEmailVerified: user.isEmailVerified
       }
     }
   });

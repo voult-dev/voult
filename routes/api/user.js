@@ -9,23 +9,21 @@ const {emailBasedLimiter, ipBasedLimiter} = require('../../middleware/advancedRa
 
 const catchAsync  = require('../../utils/catchAsync');
 
-const { csrfProtection } = require('../../middleware/csrfProtection');
-
 const controller = require('../../controllers/api/user');
 
 router.get('/me', catchAsync(controller.me));
 
 // Password reset endpoints - Email-based limiting to prevent targeting specific emails
-router.post('/forgot-password', csrfProtection, verifyClient, emailBasedLimiter, catchAsync(controller.forgotPassword));
+router.post('/forgot-password', verifyClient, emailBasedLimiter, catchAsync(controller.forgotPassword));
 
-router.post('/reset-password', csrfProtection, verifyClient, ipBasedLimiter, catchAsync(controller.resetPassword));
+router.post('/reset-password', verifyClient, ipBasedLimiter, catchAsync(controller.resetPassword));
 
 router.get('/verify-email', catchAsync(controller.verifyEmail));
 
-router.post('/disable', csrfProtection, requireEndUserAuth, requireActiveEndUser, catchAsync(controller.disableAccount));
+router.post('/disable', requireEndUserAuth, requireActiveEndUser, catchAsync(controller.disableAccount));
 
-router.post('/reenable', csrfProtection, requireEndUserAuth, catchAsync(controller.reenableAccount));
+router.post('/reenable', requireEndUserAuth, catchAsync(controller.reenableAccount));
 
-router.patch('/me', csrfProtection, requireEndUserAuth, requireActiveEndUser, catchAsync(controller.updateProfile));
+router.patch('/me', requireEndUserAuth, requireActiveEndUser, catchAsync(controller.updateProfile));
 
 module.exports = router;

@@ -44,6 +44,19 @@ describe('Developer web CSRF protection', () => {
     expect(res.status).not.toBe(403);
     expect(res.body?.error?.code || res.body?.error).toBeDefined();
   });
+
+  test('API user account routes do not require CSRF token', async () => {
+    const res = await request(app)
+      .post('/api/user/forgot-password')
+      .set('Content-Type', 'application/json')
+      .set('X-Client-Id', 'app_test')
+      .set('X-Client-Secret', 'secret_test')
+      .send({ email: 'test@test.com' });
+
+    expect(res.status).not.toBe(403);
+    expect(res.body?.error?.code).not.toBe('EBADCSRFTOKEN');
+    expect(res.body?.error?.code).not.toBe('INVALID_CSRF_TOKEN');
+  });
 });
 
 describe('Audit log API authorization', () => {
